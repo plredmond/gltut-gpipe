@@ -26,7 +26,7 @@ initWindow w = do
 
 displayIO :: Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
 displayIO size = do
-          return $ display size
+    return $ display size
 
 display :: Vec2 Int -> FrameBuffer RGBAFormat () ()
 display size = draw fragments cleared
