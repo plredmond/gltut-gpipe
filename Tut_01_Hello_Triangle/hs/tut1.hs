@@ -9,8 +9,8 @@ main = do
     n <- getProgName
     newWindow
         n -- window title
-        (300:.200:.())  -- desired window position
-        (500:.500:.())  -- desired window size
+        (300:.200:.()) -- desired window position
+        (500:.500:.()) -- desired window size
         displayIO
         initWindow
     GLUT.mainLoop
@@ -18,6 +18,11 @@ main = do
 initWindow :: GLUT.Window -> IO ()
 initWindow w = do
     GLUT.idleCallback GLUT.$= Just (GLUT.postRedisplay $ Just w)
+    GLUT.keyboardMouseCallback GLUT.$= Just onKeyMouse
+    where
+        onKeyMouse :: GLUT.Key -> GLUT.KeyState -> GLUT.Modifiers -> GLUT.Position -> IO ()
+        onKeyMouse (GLUT.Char '\ESC') GLUT.Down _ _ = do GLUT.leaveMainLoop
+        onKeyMouse _ _ _ _ = do return ()
 
 displayIO :: Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
 displayIO size = do
