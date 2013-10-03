@@ -43,7 +43,7 @@ display size = draw fragments cleared
         fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
         fragments = fmap fs
                   $ rasterizeBack
-                  $ fmap (vs $ toGPU $ V.map fromIntegral size)
+                  $ fmap (vs $ toGPU $ V.map fromIntegral size) -- give window size as a uniform (Tut 3's homework)
                   stream
 
 stream :: PrimitiveStream Triangle (Vec4 (Vertex Float))
