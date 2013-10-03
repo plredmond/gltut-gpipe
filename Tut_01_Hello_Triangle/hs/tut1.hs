@@ -57,6 +57,6 @@ vs :: Vec4 (Vertex Float) -> (Vec4 (Vertex Float), ())
 vs pos = (pos, ())
 
 fs :: () -> Color RGBAFormat (Fragment Float)
-fs col = RGBA (vec 1) 1
+fs _ = RGBA (vec 1) 1
 
 -- eof
