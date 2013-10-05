@@ -1,13 +1,13 @@
 import System.Environment (getArgs, getProgName)
-import System.Exit (exitSuccess, exitFailure)
-import System.IO (hPutStrLn, stderr)
-import Control.Exception (catch, IOException)
 import qualified Graphics.UI.GLUT as GLUT
 import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
+import Args
 import Load
+import qualified Perspective
+import TimeFun
 
 main :: IO ()
 main = do
@@ -22,21 +22,6 @@ main = do
         (displayIO $ readStream s)
         initWindow
     GLUT.mainLoop
-
-parseArgs :: IO (String)
-parseArgs = do
-    filename <- catch extract handle
-    return filename
-    where
-        extract :: IO (String)
-        extract = do
-            [filename] <- getArgs
-            return filename
-        handle :: IOException -> IO String
-        handle e = do
-            n <- getProgName
-            hPutStrLn stderr $ "USAGE: " ++ n ++ " filename"
-            exitFailure
 
 initWindow :: GLUT.Window -> IO ()
 initWindow w = do
@@ -67,57 +52,15 @@ display stream size sec = draw pp $ draw fragments cleared
         fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
         fragments = fmap fs
                   $ rasterizeBack
-                  $ fmap (vs (toGPU (0.5:.0.5:.(-2):.0:.())) (toGPU perspectiveMatrix))
-                  -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
+                  $ fmap (vs offset matrix)
                   stream
-        -- perspective matrix
-        frustrumScale = 1
-        zNear = 0.5
-        zFar = 3
-        width:.height:.() = V.map fromIntegral size
-        (ppx:.ppy:.ppz:._:.(), pp) = perspectivePlane sec
-        perspectiveMatrix :: Mat44 Float
-        perspectiveMatrix =
-            (((scx):.(  0):.(  0):.(ppx):.()):.
-             ((  0):.(scy):.(  0):.(ppy):.()):.
-             ((  0):.(  0):.(pr1):.(pr2):.()):.
-             ((  0):.(  0):.(neg):.(  0):.()):.
-             ())
-            where
-                scx = frustrumScale / (width / height)
-                scy = frustrumScale
-                pr1 = (zNear + zFar) / (zNear - zFar)
-                pr2 = (2 * zNear * zFar) / (zNear - zFar)
-                neg = -1 / (abs ppz)
+        -- offset is a constant uniform calculated only once
+        offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
+        -- matrix is a uniform calculated every frame
+        (ppPos, pp) = projectionPlane sec
+        matrix = toGPU $ Perspective.m_ar_pp 1 0.5 3 (V.map fromIntegral size) (V.take n3 ppPos)
 
--- Return the position of the center of the perspective plane and a FragmentStream of it rendered.
-perspectivePlane :: Float -> (Vec4 Float, FragmentStream (Color RGBAFormat (Fragment Float)))
-perspectivePlane sec = (pos, frags)
-    where
-        pos = append (computePositionOffsets sec) ((-1):.1:.())
-        pos_unif = toGPU pos
-        col_unif = toGPU $ vec 1
-        pp_vs :: Vec4 (Vertex Float) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
-        pp_vs disp = (pos_unif + disp, col_unif)
-        frags = fmap fs
-              $ rasterizeFront
-              $ fmap pp_vs
-              $ toGPUStream LineStrip
-              [ (-1):.(-1):.0:.0:.()
-              , (-1):.( 1):.0:.0:.()
-              , ( 1):.( 1):.0:.0:.()
-              , ( 1):.(-1):.0:.0:.()
-              , (-1):.(-1):.0:.0:.()
-              ]
-
-computePositionOffsets :: Float -> Vec2 Float
-computePositionOffsets elapsedTime = (0.5 * cos (currTimeThroughLoop * scale)) :.
-                                     (0.5 * sin (currTimeThroughLoop * scale)) :. ()
-    where
-        loopDuration = 5
-        scale = pi * 2 / loopDuration
-        currTimeThroughLoop = mod' elapsedTime loopDuration
-
+-- Offset the position. Perform projection using the provided matrix.
 vs :: Vec4 (Vertex Float) -> Mat44 (Vertex Float) -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
 vs offset mat (pos, col) = (clipPos, col)
     where

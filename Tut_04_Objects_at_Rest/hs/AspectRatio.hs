@@ -1,13 +1,12 @@
 import System.Environment (getArgs, getProgName)
-import System.Exit (exitSuccess, exitFailure)
-import System.IO (hPutStrLn, stderr)
-import Control.Exception (catch, IOException)
 import qualified Graphics.UI.GLUT as GLUT
 import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
+import Args
 import Load
+import qualified Perspective
 
 main :: IO ()
 main = do
@@ -22,21 +21,6 @@ main = do
         (displayIO $ readStream s)
         initWindow
     GLUT.mainLoop
-
-parseArgs :: IO (String)
-parseArgs = do
-    filename <- catch extract handle
-    return filename
-    where
-        extract :: IO (String)
-        extract = do
-            [filename] <- getArgs
-            return filename
-        handle :: IOException -> IO String
-        handle e = do
-            n <- getProgName
-            hPutStrLn stderr $ "USAGE: " ++ n ++ " filename"
-            exitFailure
 
 initWindow :: GLUT.Window -> IO ()
 initWindow w = do
@@ -66,28 +50,14 @@ display stream size = draw fragments cleared
         fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
         fragments = fmap fs
                   $ rasterizeBack
-                  $ fmap (vs (toGPU (0.5:.0.5:.(-2):.0:.())) (toGPU perspectiveMatrix))
-                  -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
+                  $ fmap (vs offset matrix)
                   stream
-        -- perspective matrix
-        frustrumScale = 1
-        zNear = 0.5
-        zFar = 3
-        width:.height:.() = V.map fromIntegral size
-        perspectiveMatrix :: Mat44 Float
-        perspectiveMatrix =
-            (((scx):.(  0):.(  0):.(  0):.()):.
-             ((  0):.(scy):.(  0):.(  0):.()):.
-             ((  0):.(  0):.(pr1):.(pr2):.()):.
-             ((  0):.(  0):.(neg):.(  0):.()):.
-             ())
-            where
-                scx = frustrumScale / (width / height)
-                scy = frustrumScale
-                pr1 = (zNear + zFar) / (zNear - zFar)
-                pr2 = (2 * zNear * zFar) / (zNear - zFar)
-                neg = -1.0
+        -- offset is a constant uniform calculated only once
+        offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
+        -- matrix is a uniform calculated every frame
+        matrix = toGPU $ Perspective.m_ar 1 0.5 3 (V.map fromIntegral size)
 
+-- Offset the position. Perform projection using the provided matrix.
 vs :: Vec4 (Vertex Float) -> Mat44 (Vertex Float) -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
 vs offset mat (pos, col) = (clipPos, col)
     where

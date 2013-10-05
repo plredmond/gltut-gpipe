@@ -1,12 +1,10 @@
 import System.Environment (getArgs, getProgName)
-import System.Exit (exitSuccess, exitFailure)
-import System.IO (hPutStrLn, stderr)
-import Control.Exception (catch, IOException)
 import qualified Graphics.UI.GLUT as GLUT
 import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
+import Args
 import Load
 
 main :: IO ()
@@ -22,21 +20,6 @@ main = do
         (displayIO $ readStream s)
         initWindow
     GLUT.mainLoop
-
-parseArgs :: IO (String)
-parseArgs = do
-    filename <- catch extract handle
-    return filename
-    where
-        extract :: IO (String)
-        extract = do
-            [filename] <- getArgs
-            return filename
-        handle :: IOException -> IO String
-        handle e = do
-            n <- getProgName
-            hPutStrLn stderr $ "USAGE: " ++ n ++ " filename"
-            exitFailure
 
 initWindow :: GLUT.Window -> IO ()
 initWindow w = do
@@ -66,10 +49,12 @@ display stream size = draw fragments cleared
         fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
         fragments = fmap fs
                   $ rasterizeBack
-                  $ fmap (vs (toGPU (0.5:.0.5:.(-2):.0:.())) (toGPU 1) (toGPU 1) (toGPU 3))
-                  -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
+                  $ fmap (vs offset (toGPU 1) (toGPU 1) (toGPU 3))
                   stream
+        -- offset is a constant uniform calculated only once
+        offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
 
+-- Offset the position. Perform projection manually.
 vs :: Vec4 (Vertex Float) -> Vertex Float -> Vertex Float -> Vertex Float -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
 vs offset frustrumScale zNear zFar (pos, col) = (clipPos, col)
     where
