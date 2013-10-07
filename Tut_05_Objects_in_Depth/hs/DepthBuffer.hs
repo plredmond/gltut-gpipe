@@ -46,23 +46,23 @@ initWindow w = do
         onKeyMouse (GLUT.Char '\ESC') GLUT.Down _ _ = do GLUT.leaveMainLoop
         onKeyMouse _ _ _ _ = do return ()
 
-displayIO :: [Object] -> Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
+displayIO :: [Object] -> Vec2 Int -> IO (FrameBuffer RGBAFormat DepthFormat ())
 displayIO objs size = do
     milliseconds <- GLUT.get GLUT.elapsedTime
     return $ display objs size (fromIntegral milliseconds / 1000)
 
-display :: [Object] -> Vec2 Int -> Float -> FrameBuffer RGBAFormat () ()
+display :: [Object] -> Vec2 Int -> Float -> FrameBuffer RGBAFormat DepthFormat ()
 display objs size sec = P.foldl (flip draw) cleared -- draw in-order onto the framebuffer
                       $ P.map (mkFragments matrix) objs'
     where
         -- draw -- curry blending mode and boolean color mask onto paintColor
         draw :: FragmentStream (Color RGBAFormat (Fragment Float))
-                -> FrameBuffer RGBAFormat () ()
-                -> FrameBuffer RGBAFormat () ()
-        draw = paintColor NoBlending (RGBA (vec True) True)
+                -> FrameBuffer RGBAFormat DepthFormat ()
+                -> FrameBuffer RGBAFormat DepthFormat ()
+        draw = paintColorRastDepth Lequal True NoBlending (RGBA (vec True) True)
         -- cleared -- a solid color framebuffer
-        cleared :: FrameBuffer RGBAFormat () ()
-        cleared = newFrameBufferColor (RGBA (vec 0) 1)
+        cleared :: FrameBuffer RGBAFormat DepthFormat ()
+        cleared = newFrameBufferColorDepth (RGBA (vec 0) 1) 1
         -- matrix is a uniform calculated every frame
         matrix = toGPU $ Perspective.m_ar 1 1 3 (V.map fromIntegral size)
         -- offset the first thing
