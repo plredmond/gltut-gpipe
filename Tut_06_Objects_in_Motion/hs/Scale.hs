@@ -6,6 +6,7 @@ import Prelude as P
 
 import Tetrahedron
 import RenderState
+import AnimUtils
 
 main :: IO ()
 main = do
@@ -75,45 +76,55 @@ fs :: Vec4 (Fragment Float) -> Color RGBAFormat (Fragment Float)
 fs col = RGBA (V.take n3 col) (V.last col)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- Types of translated object instances
+-- Types of scaled object instances
 
-type CalcOffset = Float -> Vec3 Float
+type ScaleFunc = Float -> Vec3 Float
+type Instance = (ScaleFunc, Vec3 Float)
 
--- Produce a translation matrix (identity with offset in the w-column)
-constructMatrix :: CalcOffset -> Float -> Mat44 Float
-constructMatrix calcOffset elapsedTime = transpose $ set n3 offset identity
+-- Produce a scale and translation matrix
+constructMatrix :: Instance -> Float -> Mat44 Float
+constructMatrix (calcScale, offset3) elapsedTime = so_mat
     where
-        offset = homPoint $ calcOffset elapsedTime
+        scale = homPoint $ calcScale elapsedTime
+        offset = homPoint offset3
+--      [[sx, 0, 0,ox],
+--       [ 0,sy, 0,oy],
+--       [ 0, 0,sz,oz],
+--       [ 0, 0, 0, 1] ]
+        s_mat = diagonal scale :: Mat44 Float
+        so_mat = transpose $ set n3 offset s_mat :: Mat44 Float
 
--- A list of functions which produce translation matrices
-g_instanceList :: [CalcOffset]
-g_instanceList = [ stationaryOffset
-                 , ovalOffset
-                 , bottomCircleOffset ]
+-- A list of instances which produce translation/scaling matrices
+g_instanceList :: [Instance]
+g_instanceList = [ (nullScale,              (  0):.(  0):.(-45):.())
+                 , (staticUniformScale,     (-10):.(-10):.(-45):.())
+                 , (staticNonUniformScale,  (-10):.( 10):.(-45):.())
+                 , (dynamicUniformScale,    ( 10):.( 10):.(-45):.())
+                 , (dynamicNonUniformScale, ( 10):.(-10):.(-45):.())
+                 ]
 
-stationaryOffset :: CalcOffset
-stationaryOffset elapsedTime = 0 :. 0 :. (-20) :. ()
+nullScale :: ScaleFunc
+nullScale _ = vec 1
 
-ovalOffset :: CalcOffset
-ovalOffset elapsedTime = (4 * cos currRadsThroughLoop) :.
-                         (6 * sin currRadsThroughLoop) :.
-                         (-20) :.
-                         ()
+staticUniformScale :: ScaleFunc
+staticUniformScale _ = vec 4
+
+staticNonUniformScale :: ScaleFunc
+staticNonUniformScale _ = 0.5:.1:.10:.()
+ 
+dynamicUniformScale :: ScaleFunc
+dynamicUniformScale elapsedTime = vec scale
     where
-        loopDuration = 3 -- sec
-        scale = pi * 2 / loopDuration -- rad/sec
-        currTimeThroughLoop = mod' elapsedTime loopDuration -- sec
-        currRadsThroughLoop = currTimeThroughLoop * scale -- rad
+        loopDuration = 3
+        scale = mix 1 4 $ calcLerpFactor elapsedTime loopDuration
 
-bottomCircleOffset :: CalcOffset
-bottomCircleOffset elapsedTime = (5 * cos currRadsThroughLoop) :.
-                                 (-3.5) :.
-                                 (5 * sin currRadsThroughLoop - 20) :.
-                                 ()
+dynamicNonUniformScale :: ScaleFunc
+dynamicNonUniformScale elapsedTime = x:.y:.z:.()
     where
-        loopDuration = 12 -- sec
-        scale = pi * 2 / loopDuration -- rad/sec
-        currTimeThroughLoop = mod' elapsedTime loopDuration -- sec
-        currRadsThroughLoop = currTimeThroughLoop * scale -- rad
+        xLoopDuration = 3
+        zLoopDuration = 5
+        x = mix 1 0.5 $ calcLerpFactor elapsedTime xLoopDuration
+        y = 1
+        z = mix 1 10 $ calcLerpFactor elapsedTime zLoopDuration
 
 -- eof
