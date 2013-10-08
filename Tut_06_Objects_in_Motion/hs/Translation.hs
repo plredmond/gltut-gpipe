@@ -81,9 +81,14 @@ type CalcOffset = Float -> Vec3 Float
 
 -- Produce a translation matrix (identity with offset in the w-column)
 constructMatrix :: CalcOffset -> Float -> Mat44 Float
-constructMatrix calcOffset elapsedTime = transpose $ set n3 offset identity
+constructMatrix calcOffset elapsedTime = o_mat
     where
         offset = homPoint $ calcOffset elapsedTime
+--      [[ 1, 0, 0,ox],
+--       [ 0, 1, 0,oy],
+--       [ 0, 0, 1,oz],
+--       [ 0, 0, 0, 1] ]
+        o_mat = transpose $ set n3 offset identity
 
 -- A list of functions which produce translation matrices
 g_instanceList :: [CalcOffset]
