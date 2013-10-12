@@ -10,8 +10,7 @@ It is recommended to use a diff tool to compare each code example with the next.
 
 The initial commit contains code for tutorials 1-6 that include many embellishments. These may prove enlightening or confusing. I'm working to make a second pass over these tutorials to make them resemble Jason's examples more closely.
 
-* Tutorials 1-4 are clean and resemble Jason's examples.
-* Tutorials 5-6 are working but have embellishments not present in Jason's examples.
+* Tutorials 1-6 are clean and resemble Jason's examples.
 * Tutorials 7-17 are forthcoming.
 
 -- [PLR](http://f06mote.com)
