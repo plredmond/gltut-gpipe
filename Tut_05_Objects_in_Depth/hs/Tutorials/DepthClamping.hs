@@ -4,9 +4,9 @@ import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
-import Load
-import qualified Perspective
-import TimeFun
+import Lib.Load
+import qualified Lib.Perspective
+import Lib.TimeFun
 
 type Stream = PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float))
 type Object = (Stream, Vec4 (Vertex Float))
@@ -41,9 +41,13 @@ initWindow :: GLUT.Window -> IO ()
 initWindow w = do
     GLUT.idleCallback GLUT.$= Just (GLUT.postRedisplay $ Just w)
     GLUT.keyboardMouseCallback GLUT.$= Just onKeyMouse
+    GLUT.depthClamp GLUT.$= GLUT.Enabled
     where
         onKeyMouse :: GLUT.Key -> GLUT.KeyState -> GLUT.Modifiers -> GLUT.Position -> IO ()
         onKeyMouse (GLUT.Char '\ESC') GLUT.Down _ _ = do GLUT.leaveMainLoop
+        onKeyMouse (GLUT.Char ' '   ) GLUT.Down _ _ = do
+            x <- GLUT.get GLUT.depthClamp
+            GLUT.depthClamp GLUT.$= if x == GLUT.Disabled then GLUT.Enabled else GLUT.Disabled
         onKeyMouse _ _ _ _ = do return ()
 
 displayIO :: [Object] -> Vec2 Int -> IO (FrameBuffer RGBAFormat DepthFormat ())
@@ -64,11 +68,11 @@ display objs size sec = P.foldl (flip draw) cleared -- draw in-order onto the fr
         cleared :: FrameBuffer RGBAFormat DepthFormat ()
         cleared = newFrameBufferColorDepth (RGBA (vec 0) 1) 1
         -- matrix is a uniform calculated every frame
-        matrix = toGPU $ Perspective.m_ar 1 1 3 (V.map fromIntegral size)
+        matrix = toGPU $ Lib.Perspective.m_ar 1 1 3 (V.map fromIntegral size)
         -- offset the first thing
-        o = toGPU $ (-1.3) * computeCycle 5 sec
-        objs' = let (s, (x:.y:. z   :.w:.())):rest = objs
-                 in (s, (x:.y:.(z+o):.w:.())):rest -- Minor deviation from tutorial: We move the first thing forward and backward to demonstrate the depth
+        o = toGPU $ (1.5) * computeCycle 5 sec
+        objs' = let first:[(s, (x:.y:. z   :.w:.()))] = objs
+                 in first:[(s, (x:.y:.(z+o):.w:.()))] -- Minor deviation from tutorial: We move the first thing forward and backward to demonstrate the depth
 
 mkFragments :: Mat44 (Vertex Float) -> Object -> FragmentStream (Color RGBAFormat (Fragment Float))
 mkFragments matrix (stream, offset) = fmap fs
