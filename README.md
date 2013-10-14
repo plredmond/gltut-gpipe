@@ -6,11 +6,9 @@ These are ports of the examples from *Jason L. McKesson*'s wonderful online book
 
 It is recommended to use a diff tool to compare each code example with the next. The ports have been written to minimize changes between tutorials, therefore diffing them will highlight many of the essential changes required by each lesson.
 
-### There may be dragons..
+The tutorials are set up for use with `cabal`'s `build`, `configure`, and `clean` commands.
 
-The initial commit contains code for tutorials 1-6 that include many embellishments. These may prove enlightening or confusing. I'm working to make a second pass over these tutorials to make them resemble Jason's examples more closely.
-
-* Tutorials 1-6 are clean and resemble Jason's examples.
+* Tutorials 1-6 are complete and resemble Jason's examples.
 * Tutorials 7-17 are forthcoming.
 
 -- [PLR](http://f06mote.com)
