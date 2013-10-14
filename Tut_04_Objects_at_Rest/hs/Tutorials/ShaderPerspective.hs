@@ -4,9 +4,8 @@ import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
-import Args
-import Load
-import qualified Perspective
+import Lib.Args
+import Lib.Load
 
 main :: IO ()
 main = do
@@ -50,18 +49,22 @@ display stream size = draw fragments cleared
         fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
         fragments = fmap fs
                   $ rasterizeBack
-                  $ fmap (vs offset matrix)
+                  $ fmap (vs offset (toGPU 1) (toGPU 1) (toGPU 3))
                   stream
-        -- offset and matrix are constant uniforms calculated only once
+        -- offset is a constant uniform calculated only once
         offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
-        matrix = toGPU $ Perspective.m 1 0.5 3
 
--- Offset the position. Perform projection using the provided matrix.
-vs :: Vec4 (Vertex Float) -> Mat44 (Vertex Float) -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
-vs offset mat (pos, col) = (clipPos, col)
+-- Offset the position. Perform projection manually.
+vs :: Vec4 (Vertex Float) -> Vertex Float -> Vertex Float -> Vertex Float -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
+vs offset frustrumScale zNear zFar (pos, col) = (clipPos, col)
     where
-        cameraPos = pos + offset
-        clipPos = multmv mat cameraPos
+        camX:.camY:.camZ:.camW:.() = pos + offset
+        pr1 = (zNear + zFar) / (zNear - zFar)
+        pr2 = (2 * zNear * zFar) / (zNear - zFar)
+        clipPos = (camX * frustrumScale) :.
+                  (camY * frustrumScale) :.
+                  (camZ * pr1 + pr2) :.
+                  (-camZ) :. ()
 
 fs :: Vec4 (Fragment Float) -> Color RGBAFormat (Fragment Float)
 fs col = RGBA (V.take n3 col) (V.last col)

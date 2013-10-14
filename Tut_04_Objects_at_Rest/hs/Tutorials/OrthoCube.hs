@@ -4,10 +4,8 @@ import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
-import Args
-import Load
-import qualified Perspective
-import TimeFun
+import Lib.Args
+import Lib.Load
 
 main :: IO ()
 main = do
@@ -34,11 +32,10 @@ initWindow w = do
 
 displayIO :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
 displayIO stream size = do
-    milliseconds <- GLUT.get GLUT.elapsedTime
-    return $ display stream size (fromIntegral milliseconds / 1000)
+    return $ display stream size
 
-display :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> Float -> FrameBuffer RGBAFormat () ()
-display stream size sec = draw pp $ draw fragments cleared
+display :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> FrameBuffer RGBAFormat () ()
+display stream size = draw fragments cleared
     where
         -- draw -- curry blending mode and boolean color mask onto paintColor
         draw :: FragmentStream (Color RGBAFormat (Fragment Float))
@@ -52,20 +49,14 @@ display stream size sec = draw pp $ draw fragments cleared
         fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
         fragments = fmap fs
                   $ rasterizeBack
-                  $ fmap (vs offset matrix)
+                  $ fmap (vs offset)
                   stream
         -- offset is a constant uniform calculated only once
-        offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
-        -- matrix is a uniform calculated every frame
-        (ppPos, pp) = projectionPlane sec
-        matrix = toGPU $ Perspective.m_ar_pp 1 0.5 3 (V.map fromIntegral size) (V.take n3 ppPos)
+        offset = toGPU (0.5:.0.25:.0:.0:.())
 
--- Offset the position. Perform projection using the provided matrix.
-vs :: Vec4 (Vertex Float) -> Mat44 (Vertex Float) -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
-vs offset mat (pos, col) = (clipPos, col)
-    where
-        cameraPos = pos + offset
-        clipPos = multmv mat cameraPos
+-- Offset the position. Don't perform any projection.
+vs :: Vec4 (Vertex Float) -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
+vs offset (pos, col) = (offset + pos, col)
 
 fs :: Vec4 (Fragment Float) -> Color RGBAFormat (Fragment Float)
 fs col = RGBA (V.take n3 col) (V.last col)

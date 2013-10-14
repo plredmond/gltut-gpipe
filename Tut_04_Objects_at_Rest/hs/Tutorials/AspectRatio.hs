@@ -4,9 +4,9 @@ import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
-import Args
-import Load
-import qualified Perspective
+import Lib.Args
+import Lib.Load
+import qualified Lib.Perspective
 
 main :: IO ()
 main = do
@@ -55,7 +55,7 @@ display stream size = draw fragments cleared
         -- offset is a constant uniform calculated only once
         offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
         -- matrix is a uniform calculated every frame
-        matrix = toGPU $ Perspective.m_ar 1 0.5 3 (V.map fromIntegral size)
+        matrix = toGPU $ Lib.Perspective.m_ar 1 0.5 3 (V.map fromIntegral size)
 
 -- Offset the position. Perform projection using the provided matrix.
 vs :: Vec4 (Vertex Float) -> Mat44 (Vertex Float) -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))

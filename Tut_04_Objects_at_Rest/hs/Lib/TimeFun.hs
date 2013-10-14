@@ -1,4 +1,4 @@
-module TimeFun where
+module Lib.TimeFun where
 
 import Graphics.GPipe
 import Data.Vec

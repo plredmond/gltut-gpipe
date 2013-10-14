@@ -1,4 +1,4 @@
-module Args where
+module Lib.Args where
 
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)

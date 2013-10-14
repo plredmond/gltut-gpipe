@@ -4,10 +4,10 @@ import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
-import Args
-import Load
-import qualified Perspective
-import TimeFun
+import Lib.Args
+import Lib.Load
+import qualified Lib.Perspective
+import Lib.TimeFun
 
 main :: IO ()
 main = do
@@ -38,7 +38,7 @@ displayIO stream size = do
     return $ display stream size (fromIntegral milliseconds / 1000)
 
 display :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> Float -> FrameBuffer RGBAFormat () ()
-display stream size sec = draw fragments cleared
+display stream size sec = draw pp $ draw fragments cleared
     where
         -- draw -- curry blending mode and boolean color mask onto paintColor
         draw :: FragmentStream (Color RGBAFormat (Fragment Float))
@@ -57,7 +57,8 @@ display stream size sec = draw fragments cleared
         -- offset is a constant uniform calculated only once
         offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
         -- matrix is a uniform calculated every frame
-        matrix = toGPU $ Perspective.m_ar 1 (0.5 + computeCycle 5 sec) 3 (V.map fromIntegral size)
+        (ppPos, pp) = projectionPlane sec
+        matrix = toGPU $ Lib.Perspective.m_ar_pp 1 0.5 3 (V.map fromIntegral size) (V.take n3 ppPos)
 
 -- Offset the position. Perform projection using the provided matrix.
 vs :: Vec4 (Vertex Float) -> Mat44 (Vertex Float) -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))

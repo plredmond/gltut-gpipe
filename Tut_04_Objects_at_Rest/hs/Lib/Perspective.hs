@@ -1,4 +1,4 @@
-module Perspective where
+module Lib.Perspective where
 
 import Data.Vec
 

@@ -1,4 +1,4 @@
-module Load where
+module Lib.Load where
 
 import Graphics.GPipe
 import Data.Vec
