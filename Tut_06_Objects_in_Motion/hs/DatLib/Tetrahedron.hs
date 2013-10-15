@@ -1,4 +1,4 @@
-module Tetrahedron
+module DatLib.Tetrahedron
 ( tetrahedron
 ) where
 

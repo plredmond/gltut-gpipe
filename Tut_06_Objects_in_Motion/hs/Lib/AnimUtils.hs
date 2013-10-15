@@ -1,4 +1,4 @@
-module AnimUtils where
+module Lib.AnimUtils where
 
 import Data.Fixed (mod')
 

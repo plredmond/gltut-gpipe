@@ -1,4 +1,4 @@
-module Skeleton where
+module Lib.Skeleton where
 
 import Prelude as P
 import Data.Vec as V
@@ -6,7 +6,8 @@ import Data.HashMap.Lazy as H
 import Data.Maybe
 import Data.Fixed -- for mod'
 import Control.Monad -- for join
-import MatrixStack
+
+import Lib.MatrixStack
 
 -- A posable skeleton.
 data Skeleton m a = Bone [SkelTrans a] [m]

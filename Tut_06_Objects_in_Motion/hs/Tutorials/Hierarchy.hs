@@ -6,10 +6,10 @@ import Prelude as P
 import Data.IORef
 import Data.HashMap.Lazy as H -- for toList
 
-import RenderState
-import MatrixStack
-import Skeleton
-import RobotArm
+import Lib.RenderState
+import Lib.MatrixStack
+import Lib.Skeleton
+import DatLib.RobotArm
 
 main :: IO ()
 main = do

@@ -4,9 +4,9 @@ import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
-import Tetrahedron
-import RenderState
-import AnimUtils
+import Lib.RenderState
+import Lib.AnimUtils
+import DatLib.Tetrahedron
 
 main :: IO ()
 main = do

@@ -1,4 +1,4 @@
-module Cube
+module DatLib.Cube
 ( CubeStream
 , cube
 ) where

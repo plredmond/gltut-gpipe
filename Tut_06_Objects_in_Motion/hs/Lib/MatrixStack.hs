@@ -1,4 +1,4 @@
-module MatrixStack where
+module Lib.MatrixStack where
 
 import Prelude as P
 import Data.Vec as Vec

@@ -1,4 +1,4 @@
-module RenderState
+module Lib.RenderState
 ( RenderState()
 , mkRenderState
 , rsSize

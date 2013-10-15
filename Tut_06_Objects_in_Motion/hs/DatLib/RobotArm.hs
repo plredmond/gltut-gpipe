@@ -1,10 +1,11 @@
-module RobotArm where
+module DatLib.RobotArm where
 
 import Data.Vec
 import Data.HashMap.Lazy as H
-import MatrixStack
-import Skeleton
-import Cube
+
+import Lib.MatrixStack
+import Lib.Skeleton
+import DatLib.Cube
 
 pose :: Pose Float
 pose = H.fromList
