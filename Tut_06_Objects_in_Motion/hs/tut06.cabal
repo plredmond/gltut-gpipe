@@ -32,3 +32,9 @@ executable             Hierarchy
   hs-source-dirs:      Tutorials/
   build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, tut06, unordered-containers>=0.2.3.0
   default-language:    Haskell2010
+
+executable             Translation_ViaRotations
+  main-is:             Translation_ViaRotations.hs
+  hs-source-dirs:      FurtherStudy/
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, tut06
+  default-language:    Haskell2010
