@@ -16,3 +16,6 @@ The tutorials are set up for use with `cabal`'s `build`, `configure`, and `clean
 ---
 
 Written using *GHC 7.6.3* and *GPipe 1.4.1*
+
+Under [](http://creativecommons.org/licenses/by/3.0/us/).
+Original work Jason L. McKesson, adaptation Patrick Redmond.
