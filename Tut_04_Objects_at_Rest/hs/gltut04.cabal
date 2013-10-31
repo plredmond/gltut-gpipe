@@ -2,62 +2,64 @@ name:                gltut04
 version:             0.1.0.0
 build-type:          Simple
 cabal-version:       >= 1.10
+data-files:          model.vec4
 
 library
-  exposed-modules:     Lib.Args, Lib.Load, Lib.Perspective, Lib.TimeFun
+  exposed-modules:     Lib.Perspective, Lib.TimeFun, Lib.Load
+  other-modules:       Paths_gltut04
   build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0
   default-language:    Haskell2010
 
 executable             OrthoCube
   main-is:             OrthoCube.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04-0.1.0.0
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04==0.1.0.0
   default-language:    Haskell2010
 
 executable             ShaderPerspective
   main-is:             ShaderPerspective.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04-0.1.0.0
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04==0.1.0.0
   default-language:    Haskell2010
 
 executable             MatrixPerspective
   main-is:             MatrixPerspective.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04-0.1.0.0
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04==0.1.0.0
   default-language:    Haskell2010
 
 executable             AspectRatio
   main-is:             AspectRatio.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04-0.1.0.0
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04==0.1.0.0
   default-language:    Haskell2010
 
 executable             AspectRatio_PulseFrustrumScale
   main-is:             AspectRatio_PulseFrustrumScale.hs
   hs-source-dirs:      FurtherStudy/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04-0.1.0.0
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04==0.1.0.0
   default-language:    Haskell2010
 
 executable             AspectRatio_PulseZNear
   main-is:             AspectRatio_PulseZNear.hs
   hs-source-dirs:      FurtherStudy/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04-0.1.0.0
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04==0.1.0.0
   default-language:    Haskell2010
 
 executable             AspectRatio_PulseZFar
   main-is:             AspectRatio_PulseZFar.hs
   hs-source-dirs:      FurtherStudy/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04-0.1.0.0
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04==0.1.0.0
   default-language:    Haskell2010
 
 executable             ShaderPerspective_VarPerspectivePlane
   main-is:             ShaderPerspective_VarPerspectivePlane.hs
   hs-source-dirs:      FurtherStudy/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04-0.1.0.0
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04==0.1.0.0
   default-language:    Haskell2010
 
 executable             AspectRatio_VarPerspectivePlane
   main-is:             AspectRatio_VarPerspectivePlane.hs
   hs-source-dirs:      FurtherStudy/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04-0.1.0.0
+  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut04==0.1.0.0
   default-language:    Haskell2010

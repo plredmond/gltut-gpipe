@@ -4,14 +4,15 @@ import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
-import Lib.Args
+import Paths_gltut04
+
 import Lib.Load
 
 main :: IO ()
 main = do
     GLUT.getArgsAndInitialize
     n <- getProgName
-    f <- parseArgs
+    f <- getDataFileName "model.vec4"
     s <- readFile f
     newWindow
         n -- window title
