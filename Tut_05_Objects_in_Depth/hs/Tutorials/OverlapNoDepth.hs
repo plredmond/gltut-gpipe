@@ -4,6 +4,8 @@ import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
+import Paths_gltut05
+
 import Lib.Load
 import qualified Lib.Perspective
 import Lib.TimeFun
@@ -25,8 +27,10 @@ main :: IO ()
 main = do
     GLUT.getArgsAndInitialize
     n <- getProgName
-    s_horiz <- readFile "obj-horiz.vec4"
-    s_vert  <- readFile "obj-vert.vec4"
+    f_horiz <- getDataFileName "obj-horiz.vec4"
+    f_vert  <- getDataFileName "obj-vert.vec4"
+    s_horiz <- readFile f_horiz
+    s_vert  <- readFile f_vert
     newWindow
         n -- window title
         (300:.200:.()) -- desired window position
