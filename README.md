@@ -6,7 +6,7 @@ These are ports of the examples from *Jason L. McKesson*'s wonderful online book
 
 It is recommended to use a diff tool to compare each code example with the next. The ports have been written to minimize changes between tutorials, therefore diffing them will highlight many of the essential changes required by each lesson.
 
-The tutorials are set up for use with `cabal`'s `build`, `configure`, and `clean` commands.
+The tutorials are set up for use with `cabal`. A few of the tutorials have dependencies on earlier ones.
 
 * Tutorials 1-6 are complete and resemble Jason's examples.
 * Tutorials 7-17 are forthcoming.
