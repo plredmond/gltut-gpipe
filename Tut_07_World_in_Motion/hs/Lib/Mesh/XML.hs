@@ -14,8 +14,8 @@ childText :: Element -> [String]
 childText = concat . map (words . cdData) . onlyText . elContent
 
 -- Get the named attribute from the element and parse it.
-extractAttr :: Element -> String -> (String -> Either String b) -> Either String b
-extractAttr e n r = do
+extractAttr :: String -> (String -> Either String b) -> Element -> Either String b
+extractAttr n r e = do
     s <- requireAttr n e
     v <- r s
     return v

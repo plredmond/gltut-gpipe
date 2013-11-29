@@ -6,15 +6,17 @@ module Lib.Mesh
 -- hackage
 import Text.XML.Light
 import Text.Printf (printf)
+import Data.List (nub, (\\))
+import Data.Maybe (listToMaybe)
 
 -- local
 import Lib.Mesh.XML
 import Lib.Mesh.MAttr
---import Lib.Mesh.MVAO
+import Lib.Mesh.MVao
 
 -- index specifies which parts of an arbitrary attribute to use and some extra props
 -- render thunk renders with all attributes
--- render :: String -> ... renders with named vao that specifies a limited set of attributes
+-- render :: String -> ... renders with named VAO that specifies a limited set of attributes
 
 -- Mesh ----------------------------------------------------------------------
 
@@ -27,7 +29,7 @@ test = do
 -- Mesh --
 
 data Mesh = Mesh { mAttr :: [MAttr]
-                 --, mVAO :: [MVAO]
+                 , mVao :: [MVao]
                  } deriving (Show, Read, Eq)
 
 readMesh :: String -> Either String Mesh
@@ -40,10 +42,12 @@ readMesh s = do
 mkMesh :: Element -> Either String Mesh
 mkMesh el = do
     mattrs      <- mapM mkMAttr     $ rawFindChildren "attribute" el
---    mvaos       <- mapM mkVAO       $ rawFindChildren "vao"       el
+    mvaos       <- mapM mkMVao      $ rawFindChildren "vao"       el
 --    mprimitives <- mapM mkPrimitive $ rawFindChildren "indices"   el
+    mattrsUniqInd mattrs
     mattrsLengthEq mattrs
-    return $ Mesh mattrs
+    mvaosRefAttrs mvaos mattrs
+    return $ Mesh mattrs mvaos
     where
         mattrsLengthEq :: [MAttr] -> Either String ()
         mattrsLengthEq []             = Left "Mesh must contain at least one Attribute element"
@@ -52,7 +56,22 @@ mkMesh el = do
             where
                 n = lengthMAttr . head $ as
                 b = ((n ==) . lengthMAttr) `all` as
-
+        mattrsUniqInd :: [MAttr] -> Either String ()
+        mattrsUniqInd as = maybe
+            (Right ())
+            (Left . (printf "Attribute index=\"%s\" appears multiple times") . show . \(MAttrIndex i) -> i)
+            (let inds = map maIndex as
+                 dups = nub $ inds \\ nub inds
+              in listToMaybe dups)
+        mvaosRefAttrs :: [MVao] -> [MAttr] -> Either String ()
+        mvaosRefAttrs vs as = maybe
+            (Right ())
+            (Left . (printf "VAO mentioned nonexistant Attribute index=\"%s\"") . show . \(MAttrIndex i) -> i)
+            (let ais = map maIndex as
+                 vis = concatMap mvIndexes vs
+                 unref = nub vis \\ nub ais
+              in listToMaybe unref)
+                
 lookupMeshElement :: [Content] -> Either String Element
 lookupMeshElement cs = case rawFilterByName "mesh" . onlyElems $ cs of
     [e] -> Right e

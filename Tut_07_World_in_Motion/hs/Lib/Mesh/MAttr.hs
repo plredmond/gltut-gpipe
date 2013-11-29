@@ -23,9 +23,9 @@ data MAttr = MAttr { maIndex :: MAttrIndex
 
 mkMAttr :: Element -> Either String MAttr
 mkMAttr e = do
-    ai <- extractAttr e "index" readMAttrIndex
-    as <- extractAttr e "size" readMAttrSize
-    at <- extractAttr e "type" readMAttrType
+    ai <- extractAttr "index" readMAttrIndex e
+    as <- extractAttr "size" readMAttrSize e
+    at <- extractAttr "type" readMAttrType e
     ad <- readMAttrData as at $ childText e
     return $ MAttr ai as at ad
 
