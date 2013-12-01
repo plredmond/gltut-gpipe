@@ -119,7 +119,7 @@ readMAttrData as at ss = do
     ad <- modLeft f . reader $ ss
     return ad
     where
-        f _ = printf "Some part of \"%s\" doesn't look like an %s value" (unwords ss) (show at)
+        f _ = printf "Some part <attribute ...>%s</attribute> doesn't look like an %s value" (unwords ss) (show at)
         reader :: [String] -> Either String MAttrData
         reader = case at of
             MAttrTypeFloat      -> fmap MAttrDataFloat  . readManyEither
