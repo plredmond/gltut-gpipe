@@ -1,4 +1,3 @@
-{-# LANGUAGE MultiWayIf #-}
 module Lib.Mesh.Util where
 
 -- hackage
@@ -9,9 +8,10 @@ import Text.Read (readEither)
 
 -- Right if the value is within bounds. Left if it is not.
 constrainBounds :: (Show b, Ord b, Bounded b) => b -> Either String b
-constrainBounds v = if | v < minBound -> Left $ printf "Value \"%s\" underwhelms minBound" (show v)
-                       | v > maxBound -> Left $ printf "Value \"%s\" exceeds maxBound" (show v)
-                       | otherwise    -> Right v
+constrainBounds v
+    | v < minBound = Left $ printf "Value \"%s\" underwhelms minBound" (show v)
+    | v > maxBound = Left $ printf "Value \"%s\" exceeds maxBound" (show v)
+    | otherwise    = Right v
 
 -- Convert a Maybe to an Either using the given error string.
 m2e :: String -> Maybe a -> Either String a
