@@ -11,6 +11,8 @@ import Text.Read (readEither)
 import Lib.Mesh.XML
 import Lib.Mesh.Util
 
+-- Indices/Arrays specify which parts of an arbitrary attribute to draw.
+
 -- MPrim ---------------------------------------------------------------------
 
 data MPrim = MPrimIndex {mpiCmd::MPrimCmd, mpIndices::[CInt]}
