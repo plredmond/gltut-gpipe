@@ -5,6 +5,8 @@ import Foreign.C.Types
 import Text.XML.Light
 import Text.Read (readEither)
 import Text.Printf (printf)
+import Data.List.Split (chunksOf)
+import Data.Vec (VecList, fromList)
 
 -- local
 import Lib.Mesh.XML
@@ -30,9 +32,15 @@ mkMAttr e = do
     return $ MAttr ai as at ad
 
 lengthMAttr :: MAttr -> Int
-lengthMAttr a = (lengthMAttrData . maData $ a) `div` (fromIntegral s)
-    where
-        MAttrSize s = maSize a
+lengthMAttr a = (lengthMAttrData.maData $ a) `div` (fromMAttrSize.maSize $ a)
+
+-- FIXME: fromRational may reduce precision?
+extractMAttr :: (Fractional a, VecList a b) => MAttr -> [b]
+extractMAttr (MAttr _ s t d) = map fromList
+                             . chunksOf (fromMAttrSize s)
+                             . map (fromRational . extractMAttrType t)
+                             . extractMAttrData
+                             $ d
 
 -- MAttrIndex --
 
@@ -51,6 +59,9 @@ readMAttrIndex s = do
     where
         f _ = printf "String \"%s\" doesn't look like an Attribute index" s
 
+fromMAttrIndex :: (Num a) => MAttrIndex -> a
+fromMAttrIndex (MAttrIndex s) = fromIntegral s
+
 -- MAttrSize --
 
 data MAttrSize = MAttrSize CUChar
@@ -67,6 +78,9 @@ readMAttrSize s = do
     return as
     where
         f _ = printf "String \"%s\" doesn't look like an Attribute size" s
+
+fromMAttrSize :: (Num a) => MAttrSize -> a
+fromMAttrSize (MAttrSize s) = fromIntegral s
 
 -- MAttrType --
 
@@ -86,21 +100,36 @@ data MAttrType = MAttrTypeFloat
                deriving (Show, Read, Eq)
 
 readMAttrType :: String -> Either String MAttrType
-readMAttrType s = case s of
-    "float"       -> Right MAttrTypeFloat
-    "int"         -> Right MAttrTypeInt
-    "uint"        -> Right MAttrTypeUInt
-    "norm-int"    -> Right MAttrTypeNormInt
-    "norm-uint"   -> Right MAttrTypeNormUInt
-    "short"       -> Right MAttrTypeShort
-    "ushort"      -> Right MAttrTypeUShort
-    "norm-short"  -> Right MAttrTypeNormShort
-    "norm-ushort" -> Right MAttrTypeNormUShort
-    "byte"        -> Right MAttrTypeByte
-    "ubyte"       -> Right MAttrTypeUByte
-    "norm-byte"   -> Right MAttrTypeNormByte
-    "norm-ubyte"  -> Right MAttrTypeNormUByte
-    _             -> Left $ printf "String \"%s\" doesn't look like an Attribute type" s
+readMAttrType "float"       = Right MAttrTypeFloat
+readMAttrType "int"         = Right MAttrTypeInt
+readMAttrType "uint"        = Right MAttrTypeUInt
+readMAttrType "norm-int"    = Right MAttrTypeNormInt
+readMAttrType "norm-uint"   = Right MAttrTypeNormUInt
+readMAttrType "short"       = Right MAttrTypeShort
+readMAttrType "ushort"      = Right MAttrTypeUShort
+readMAttrType "norm-short"  = Right MAttrTypeNormShort
+readMAttrType "norm-ushort" = Right MAttrTypeNormUShort
+readMAttrType "byte"        = Right MAttrTypeByte
+readMAttrType "ubyte"       = Right MAttrTypeUByte
+readMAttrType "norm-byte"   = Right MAttrTypeNormByte
+readMAttrType "norm-ubyte"  = Right MAttrTypeNormUByte
+readMAttrType s             = Left $ printf "String \"%s\" doesn't look like an Attribute type" s
+
+-- FIXME: This duplicates information about the association between MAttrType(s) and C-Types (formerly only present in readMAttrType)
+extractMAttrType :: MAttrType -> Rational -> Rational
+extractMAttrType MAttrTypeFloat      = id
+extractMAttrType MAttrTypeInt        = id
+extractMAttrType MAttrTypeUInt       = id
+extractMAttrType MAttrTypeNormInt    = error "norm int?" -- (/ toRational (maxBound :: CInt))
+extractMAttrType MAttrTypeNormUInt   = (/ toRational (maxBound :: CUInt))
+extractMAttrType MAttrTypeShort      = id
+extractMAttrType MAttrTypeUShort     = id
+extractMAttrType MAttrTypeNormShort  = error "norm short?" -- (/ toRational (maxBound :: CShort))
+extractMAttrType MAttrTypeNormUShort = (/ toRational (maxBound :: CUShort))
+extractMAttrType MAttrTypeByte       = id
+extractMAttrType MAttrTypeUByte      = id
+extractMAttrType MAttrTypeNormByte   = error "norm byte?" -- (/ toRational (maxBound :: CChar))
+extractMAttrType MAttrTypeNormUByte  = (/ toRational (maxBound :: CUChar))
 
 -- MAttrData --
 
@@ -142,7 +171,7 @@ readMAttrData as at ss = do
             | otherwise      = Right ()
             where
                 n = length ss
-                s = let MAttrSize cs = as in fromIntegral cs
+                s = fromMAttrSize as
 
 lengthMAttrData :: MAttrData -> Int
 lengthMAttrData (MAttrDataFloat  ns) = length ns
@@ -152,5 +181,14 @@ lengthMAttrData (MAttrDataUShort ns) = length ns
 lengthMAttrData (MAttrDataShort  ns) = length ns
 lengthMAttrData (MAttrDataUByte  ns) = length ns
 lengthMAttrData (MAttrDataByte   ns) = length ns
+
+extractMAttrData :: MAttrData -> [Rational]
+extractMAttrData (MAttrDataFloat  ns) = map toRational ns
+extractMAttrData (MAttrDataUInt   ns) = map toRational ns
+extractMAttrData (MAttrDataInt    ns) = map toRational ns
+extractMAttrData (MAttrDataUShort ns) = map toRational ns
+extractMAttrData (MAttrDataShort  ns) = map toRational ns
+extractMAttrData (MAttrDataUByte  ns) = map toRational ns
+extractMAttrData (MAttrDataByte   ns) = map toRational ns
 
 -- eof

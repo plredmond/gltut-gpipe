@@ -1,9 +1,9 @@
 module Lib.Mesh.MPrim where
 
 -- hackage
-import Text.XML.Light
 import Graphics.GPipe
 import Foreign.C.Types
+import Text.XML.Light hiding (Line)
 import Text.Printf (printf)
 import Text.Read (readEither)
 
@@ -72,14 +72,13 @@ data MPrimCmd = MPrimTriangleList
               deriving (Show, Read, Eq)
 
 readMPrimCmd :: String -> Either String MPrimCmd
-readMPrimCmd s = case s of
-    "triangles"  -> Right MPrimTriangleList
-    "tri-strip"  -> Right MPrimTriangleStrip
-    "tri-fan"    -> Right MPrimTriangleFan
-    "lines"      -> Right MPrimLineList
-    "line-strip" -> Right MPrimLineStrip
-    "line-loop"  -> Right MPrimLineLoop
-    "points"     -> Right MPrimPointList
-    _            -> Left $ printf "String \"%s\" doesn't look like a primitive command" s
+readMPrimCmd "triangles"  = Right MPrimTriangleList
+readMPrimCmd "tri-strip"  = Right MPrimTriangleStrip
+readMPrimCmd "tri-fan"    = Right MPrimTriangleFan
+readMPrimCmd "lines"      = Right MPrimLineList
+readMPrimCmd "line-strip" = Right MPrimLineStrip
+readMPrimCmd "line-loop"  = Right MPrimLineLoop
+readMPrimCmd "points"     = Right MPrimPointList
+readMPrimCmd s            = Left $ printf "String \"%s\" doesn't look like a primitive command" s
 
 -- eof
