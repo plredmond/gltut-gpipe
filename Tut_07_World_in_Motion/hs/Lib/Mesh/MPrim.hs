@@ -6,127 +6,111 @@ import Foreign.C.Types
 import Text.XML.Light hiding (Line)
 import Text.Printf (printf)
 import Text.Read (readEither)
-
+import Control.Monad (forM_)
 import Data.Maybe (catMaybes)
-import Data.Either (partitionEithers)
 
 -- local
 import Lib.Mesh.XML
 import Lib.Mesh.Util
 
--- Indices/Arrays specify which parts of an arbitrary attribute to draw.
+-- MPrim ----------------------------------------------------------------------
 
--- MPrim ---------------------------------------------------------------------
-
-data MPrim = MPrimIndex {mpiCmd::MPrimCmd, mpIndices::[CInt]}
-           | MPrimArray {mpaCmd::MPrimCmd, mpStart::CInt, mpCount::CInt}
-           deriving (Show, Read, Eq)
+data MPrim = MPrim MPrimCmd MPrimSel
+           deriving (Show, Eq)
 
 mkMPrim :: Element -> Either String MPrim
-mkMPrim e
-    | n == "arrays"  = mkMPrimArray e
-    | n == "indices" = mkMPrimIndex e
-    | otherwise      = Left $ printf "Element \"%s\" is not a known primitive" n
+mkMPrim e = do
+    cmd <- mkMPrimCmd e
+    sel <- mkMPrimSel e
+    return $ MPrim cmd sel
+
+extractMPrim :: (VertexInput a) => MPrim -> MPrimLdr a
+extractMPrim (MPrim (MPrimCmdTriangle t) sel) = MPrimLdrTriangle $ extractMPrimSel sel t
+extractMPrim (MPrim (MPrimCmdLine     l) sel) = MPrimLdrLine     $ extractMPrimSel sel l
+extractMPrim (MPrim (MPrimCmdPoint    p) sel) = MPrimLdrPoint    $ extractMPrimSel sel p
+
+-- MPrimLdr -------------------------------------------------------------------
+
+-- Loaders take an extracted attribute-array and put it on the GPU.
+data MPrimLdr a = MPrimLdrTriangle ([CPU a] -> PrimitiveStream Triangle a)
+                | MPrimLdrLine     ([CPU a] -> PrimitiveStream Line     a)
+                | MPrimLdrPoint    ([CPU a] -> PrimitiveStream Point    a)
+
+partitionLoaders :: [MPrimLdr a] -> ( [[CPU a] -> PrimitiveStream Triangle a]
+                                    , [[CPU a] -> PrimitiveStream Line     a]
+                                    , [[CPU a] -> PrimitiveStream Point    a]
+                                    )
+partitionLoaders xs = rot3cols . map extractLoader $ xs
+    where
+        extractLoader (MPrimLdrTriangle f) = (Just f, Nothing, Nothing)
+        extractLoader (MPrimLdrLine     f) = (Nothing, Just f, Nothing)
+        extractLoader (MPrimLdrPoint    f) = (Nothing, Nothing, Just f)
+        rot3cols :: [(Maybe a, Maybe b, Maybe c)] -> ([a], [b], [c])
+        rot3cols xs = let (as, bs, cs) = unzip3 xs
+                       in (catMaybes as, catMaybes bs, catMaybes cs)
+
+-- MPrimCmd -------------------------------------------------------------------
+
+-- Commands specify how to string together attribute elements for drawing.
+data MPrimCmd = MPrimCmdTriangle Triangle
+              | MPrimCmdLine     Line
+              | MPrimCmdPoint    Point
+              deriving (Show, Eq)
+
+mkMPrimCmd :: Element -> Either String MPrimCmd
+mkMPrimCmd e = do
+    pc <- extractAttr "cmd" readMPrimCmd e
+    return pc
+
+readMPrimCmd :: String -> Either String MPrimCmd
+readMPrimCmd "triangles"  = Right $ MPrimCmdTriangle TriangleList
+readMPrimCmd "tri-strip"  = Right $ MPrimCmdTriangle TriangleStrip
+readMPrimCmd "tri-fan"    = Right $ MPrimCmdTriangle TriangleFan
+readMPrimCmd "points"     = Right $ MPrimCmdPoint PointList
+readMPrimCmd "lines"      = Right $ MPrimCmdLine LineList
+readMPrimCmd "line-strip" = Right $ MPrimCmdLine LineStrip
+readMPrimCmd "line-loop"  = Left "Line loops aren't supported by GPipe"
+readMPrimCmd s            = Left $ printf "String \"%s\" doesn't look like a primitive command" s
+
+-- MPrimSel -------------------------------------------------------------------
+
+-- Selections specify which parts of an attribute-array to draw.
+data MPrimSel = MPrimSelArray {mpsStart::CInt, mpsCount::CInt}
+              | MPrimSelIndex [CInt]
+              deriving (Show, Read, Eq)
+
+mkMPrimSel :: Element -> Either String MPrimSel
+mkMPrimSel e | n == "arrays"  = mkMPrimSelArray e
+             | n == "indices" = mkMPrimSelIndex e
+             | otherwise      = Left $ printf "Element \"%s\" is not a known selection type" n
     where
         n = rawElName e
-
-mkMPrimArray :: Element -> Either String MPrim
-mkMPrimArray e = do
-    c <- extractAttr "cmd" readMPrimCmd e
-    s <- extractPosNumAttr "start" e
+ 
+mkMPrimSelArray :: Element -> Either String MPrimSel
+mkMPrimSelArray e = do
+    i <- extractPosNumAttr "start" e
     n <- extractPosNumAttr "count" e
-    return $ MPrimArray c s n
+    return $ MPrimSelArray i n
     where
-        extractPosNumAttr s e = do
+        extractPosNumAttr s e = do -- see extractAttr
             n <- let f _ = printf "Array element %s attribute must be numeric" s
-                     r = modLeft f . readEither 
-                  in extractAttr s r e
-            constrainRange s n
+                     rf = modLeft f . readEither 
+                  in extractAttr s rf e
+            guard (n > 0) $ printf "Array element %s attribute must be greater than zero" s
             return n
-        constrainRange s n
-            | n < 0     = Left $ printf "Array element %s attribute must be greater than zero" s
-            | otherwise = Right ()
 
-mkMPrimIndex :: Element -> Either String MPrim
-mkMPrimIndex e = do
-    c <- extractAttr "cmd" readMPrimCmd e
+mkMPrimSelIndex :: Element -> Either String MPrimSel
+mkMPrimSelIndex e = do
     is <- let ss = childText e
               f _ = printf "Some part of <indices ...>%s</indices> doesn't look like an integral value" (unwords ss)
            in modLeft f . readManyEither $ ss
-    constrainLength is
-    mapM_ constrainRange is
-    return $ MPrimIndex c is
-    where
-        constrainLength [] = Left "Indices element must contain values"
-        constrainLength _  = Right ()
-        constrainRange n
-            | n < 0     = Left "Indices element must only contain positive values"
-            | otherwise = Right ()
+    guard (length is > 0) "Indices element must contain values"
+    forM_ is $ \i -> do
+        guard (i > 0) "Indices element must only contain positive values"
+    return $ MPrimSelIndex is
 
--- MPrimCmd --
-
-data MPrimCmd = MPrimTriangleList
-              | MPrimTriangleStrip
-              | MPrimTriangleFan
-              | MPrimLineList
-              | MPrimLineStrip
-              | MPrimLineLoop
-              | MPrimPointList
-              deriving (Show, Read, Eq)
-
-readMPrimCmd :: String -> Either String MPrimCmd
-readMPrimCmd "triangles"  = Right MPrimTriangleList
-readMPrimCmd "tri-strip"  = Right MPrimTriangleStrip
-readMPrimCmd "tri-fan"    = Right MPrimTriangleFan
-readMPrimCmd "lines"      = Right MPrimLineList
-readMPrimCmd "line-strip" = Right MPrimLineStrip
-readMPrimCmd "line-loop"  = Right MPrimLineLoop
-readMPrimCmd "points"     = Right MPrimPointList
-readMPrimCmd s            = Left $ printf "String \"%s\" doesn't look like a primitive command" s
-
-
-data MPrimToGPU a = MPrimToGPUTriangle ([CPU a] -> PrimitiveStream Triangle a)
-                  | MPrimToGPULine     ([CPU a] -> PrimitiveStream Line     a)
-                  | MPrimToGPUPoint    ([CPU a] -> PrimitiveStream Point    a)
-
-extractMPrim' :: (VertexInput a) => MPrim -> Either String (MPrimToGPU a)
-extractMPrim' mp = case mpc of
-        MPrimTriangleList  -> Right . MPrimToGPUTriangle $ toLoader mp TriangleList
-        MPrimTriangleStrip -> Right . MPrimToGPUTriangle $ toLoader mp TriangleStrip
-        MPrimTriangleFan   -> Right . MPrimToGPUTriangle $ toLoader mp TriangleFan
-        MPrimLineList      -> Right . MPrimToGPULine     $ toLoader mp LineList
-        MPrimLineStrip     -> Right . MPrimToGPULine     $ toLoader mp LineStrip
-        MPrimLineLoop      -> Left "GPipe does not support LineLoop"
-        MPrimPointList     -> Right . MPrimToGPUPoint    $ toLoader mp PointList
-    where
-        mpc :: MPrimCmd
-        mpc = case mp of MPrimIndex x _ -> x
-                         MPrimArray x _ _ -> x
-        toLoader :: (Primitive p, VertexInput a) => MPrim -> p -> [CPU a] -> PrimitiveStream p a
-        toLoader (MPrimIndex _ cis  ) = let is = map fromIntegral cis
-                                         in \p xs -> toIndexedGPUStream p xs is
-        toLoader (MPrimArray _ ci cn) = let i = fromIntegral ci
-                                            n = fromIntegral cn
-                                         in \p xs -> toGPUStream p (take n . drop i $ xs)
-
-type MPrimArbToGPU a = ( Maybe ([CPU a] -> PrimitiveStream Triangle a)
-                       , Maybe ([CPU a] -> PrimitiveStream Line     a)
-                       , Maybe ([CPU a] -> PrimitiveStream Point    a)
-                       )
-
-ambiguate :: MPrimToGPU a -> MPrimArbToGPU a
-ambiguate (MPrimToGPUTriangle f) = (Just f, Nothing, Nothing)
-ambiguate (MPrimToGPULine     f) = (Nothing, Just f, Nothing)
-ambiguate (MPrimToGPUPoint    f) = (Nothing, Nothing, Just f)
-
-extractMPrims :: (VertexInput a)
-              => [MPrim] -> Either String ( [[CPU a] -> PrimitiveStream Triangle a]
-                                          , [[CPU a] -> PrimitiveStream Line     a]
-                                          , [[CPU a] -> PrimitiveStream Point    a]
-                                          )
-extractMPrims mps = do
-   fs <- mapM extractMPrim' mps
-   let (as, bs, cs) = unzip3 . map ambiguate $ fs
-   return (catMaybes as, catMaybes bs, catMaybes cs)
+extractMPrimSel :: (Primitive p, VertexInput a) => MPrimSel-> p -> [CPU a] -> PrimitiveStream p a
+extractMPrimSel (MPrimSelArray ci cn) = \p xs -> toGPUStream p (take n . drop i $ xs) where i = fromIntegral ci; n = fromIntegral cn
+extractMPrimSel (MPrimSelIndex cis  ) = \p xs -> toIndexedGPUStream p xs is           where is = map fromIntegral cis
 
 -- eof

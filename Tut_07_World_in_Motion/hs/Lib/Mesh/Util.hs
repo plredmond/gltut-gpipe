@@ -6,6 +6,11 @@ import Text.Read (readEither)
 
 -- General functions ---------------------------------------------------------
 
+-- Like Control.Monad.guard, but allows for an error message.
+guard :: Bool -> String -> Either String ()
+guard True  s = return ()
+guard False s = Left s
+
 -- Right if the value is within bounds. Left if it is not.
 constrainBounds :: (Show b, Ord b, Bounded b) => b -> Either String b
 constrainBounds v
