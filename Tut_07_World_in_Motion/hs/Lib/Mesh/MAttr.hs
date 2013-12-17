@@ -144,10 +144,13 @@ data MAttrData = MAttrDataFloat  [CFloat]
 
 readMAttrData :: MAttrSize -> MAttrType -> [String] -> Either String MAttrData
 readMAttrData as at ss = do
-    constrainLength
+    guard (n > 0) $ printf "Attribute element must contain whitespace delimited values"
+    guard (n `mod` s  == 0) $ printf "Attribute element contains %d values; must be a multiple of size=\"%d\"" n s
     ad <- modLeft f . reader $ ss
     return ad
     where
+        n = length ss
+        s = fromMAttrSize as
         f _ = printf "Some part <attribute ...>%s</attribute> doesn't look like an %s value" (unwords ss) (show at)
         reader :: [String] -> Either String MAttrData
         reader = case at of
@@ -164,14 +167,6 @@ readMAttrData as at ss = do
             MAttrTypeUByte      -> fmap MAttrDataUByte  . readManyEither
             MAttrTypeNormByte   -> fmap MAttrDataByte   . readManyEither
             MAttrTypeNormUByte  -> fmap MAttrDataUByte  . readManyEither
-        constrainLength :: Either String ()
-        constrainLength
-            | n         == 0 = Left $ printf "Attribute element must contain whitespace delimited values"
-            | n `mod` s /= 0 = Left $ printf "Attribute element contains %d values, must be a multiple of size=\"%d\"" s n
-            | otherwise      = Right ()
-            where
-                n = length ss
-                s = fromMAttrSize as
 
 lengthMAttrData :: MAttrData -> Int
 lengthMAttrData (MAttrDataFloat  ns) = length ns

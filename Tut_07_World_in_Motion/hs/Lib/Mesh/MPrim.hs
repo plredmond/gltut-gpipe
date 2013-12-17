@@ -1,3 +1,5 @@
+{-# LANGUAGE StandaloneDeriving #-}
+
 module Lib.Mesh.MPrim where
 
 -- hackage
@@ -16,7 +18,7 @@ import Lib.Mesh.Util
 -- MPrim ----------------------------------------------------------------------
 
 data MPrim = MPrim MPrimCmd MPrimSel
-           deriving (Show, Eq)
+           deriving (Show, Read, Eq)
 
 mkMPrim :: Element -> Either String MPrim
 mkMPrim e = do
@@ -51,11 +53,15 @@ partitionLoaders xs = rot3cols . map extractLoader $ xs
 
 -- MPrimCmd -------------------------------------------------------------------
 
+deriving instance Read (Triangle)
+deriving instance Read (Line)
+deriving instance Read (Point)
+
 -- Commands specify how to string together attribute elements for drawing.
 data MPrimCmd = MPrimCmdTriangle Triangle
               | MPrimCmdLine     Line
               | MPrimCmdPoint    Point
-              deriving (Show, Eq)
+              deriving (Show, Read, Eq)
 
 mkMPrimCmd :: Element -> Either String MPrimCmd
 mkMPrimCmd e = do
@@ -96,7 +102,7 @@ mkMPrimSelArray e = do
             n <- let f _ = printf "Array element %s attribute must be numeric" s
                      rf = modLeft f . readEither 
                   in extractAttr s rf e
-            guard (n > 0) $ printf "Array element %s attribute must be greater than zero" s
+            guard (n >= 0) $ printf "Array element %s attribute must be positive, saw %s" s (show n)
             return n
 
 mkMPrimSelIndex :: Element -> Either String MPrimSel
@@ -106,7 +112,7 @@ mkMPrimSelIndex e = do
            in modLeft f . readManyEither $ ss
     guard (length is > 0) "Indices element must contain values"
     forM_ is $ \i -> do
-        guard (i > 0) "Indices element must only contain positive values"
+        guard (i >= 0) $ printf "Indices element must only contain positive values, saw %s" (show i)
     return $ MPrimSelIndex is
 
 extractMPrimSel :: (Primitive p, VertexInput a) => MPrimSel-> p -> [CPU a] -> PrimitiveStream p a
