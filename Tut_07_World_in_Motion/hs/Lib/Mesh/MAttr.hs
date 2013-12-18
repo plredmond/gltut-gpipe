@@ -35,12 +35,15 @@ lengthMAttr :: MAttr -> Int
 lengthMAttr a = (lengthMAttrData.maData $ a) `div` (fromMAttrSize.maSize $ a)
 
 -- FIXME: fromRational may reduce precision?
-extractMAttr :: (Fractional a, VecList a b) => MAttr -> [b]
-extractMAttr (MAttr _ s t d) = map fromList
-                             . chunksOf (fromMAttrSize s)
-                             . map (fromRational . extractMAttrType t)
-                             . extractMAttrData
-                             $ d
+extractMAttr :: ( Fractional num  -- numeric sub-element from attribute
+                , VecList num arg -- [num] to a Vec of same
+                ) => MAttr -> [arg]
+extractMAttr (MAttr _ s t d) =
+    map fromList                              -- Convert lists to Vecs of implicit length.
+    . chunksOf (fromMAttrSize s)              -- Split into lists of size s.
+    . map (fromRational . extractMAttrType t) -- Apply normalization, if applicable to t.
+    . extractMAttrData                        -- Extract a list of rationals from d.
+    $ d
 
 -- MAttrIndex --
 
