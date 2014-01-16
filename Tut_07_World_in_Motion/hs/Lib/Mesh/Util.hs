@@ -5,7 +5,9 @@ import Text.Printf (printf)
 import Text.Read (readEither)
 import Data.Monoid (Monoid(), mconcat)
 import Data.Maybe (catMaybes)
-import qualified Data.IntMap as IM
+import qualified Data.IntMap.Lazy as IM
+import qualified Data.HashMap.Lazy as HM
+import qualified Data.Hashable as H
 
 -- General datatypes ---------------------------------------------------------
 
@@ -36,14 +38,25 @@ partitionTris = foldr (tri jyan ken po) ([], [], [])
         ken  a ~(j, k, p) = (j, a:k, p)
         po   a ~(j, k, p) = (j, k, a:p)
 
+-- triEither :: Tri (Either a x) (Either a y) (Either a z) -> Either a (Tri x y z)
+-- triEither = tri (fmap Jyan) (fmap Ken) (fmap Po)
+
 -- General functions ---------------------------------------------------------
 
-lookupEither :: IM.IntMap b -> a -> IM.Key -> Either a b
-lookupEither map err key = m2e err (IM.lookup key map)
+lookupEitherIM :: IM.IntMap b -> a -> IM.Key -> Either a b
+lookupEitherIM map err key = m2e err (IM.lookup key map)
 
--- Mconcat all the Just values from a list of Maybes which contain monoids.
-mconcatMaybes :: Monoid m => [Maybe m] -> m
-mconcatMaybes = mconcat . catMaybes
+lookupEitherHM :: (Eq k, H.Hashable k) => HM.HashMap k b -> a -> k -> Either a b
+lookupEitherHM map err key = m2e err (HM.lookup key map)
+
+-- Condense a list of monadic Tri or smth..
+mconcatTris :: (Monoid a, Monoid b, Monoid c) => [Tri a b c] -> [Tri a b c]
+mconcatTris ts = let (as, bs, cs) = partitionTris ts
+                 in [Jyan $ mconcat as, Ken $ mconcat bs, Po $ mconcat cs]
+
+-- -- Mconcat all the Just values from a list of Maybes which contain monoids.
+-- mconcatMaybes :: Monoid m => [Maybe m] -> m
+-- mconcatMaybes = mconcat . catMaybes
 
 -- Split a list into chunks sized by the first argument.
 chunkBy :: [Int] -> [a] -> [[a]]

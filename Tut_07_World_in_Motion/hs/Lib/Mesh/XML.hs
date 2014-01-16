@@ -10,17 +10,20 @@ import Lib.Mesh.Util
 
 -- XML functions --------------------------------------------------------------
 
+-- Retrieve and parse a list of whitespace delimited values in the element.
+extractList :: (String -> Either String b) -> Element -> Either String [b]
+extractList readf el = modLeft errf . mapM readf $ strs
+    where
+        strs = childText el
+        elname = rawElName el
+        s = if length strs > 10
+            then unwords $ take 10 strs ++ ["..."]
+            else unwords strs
+        errf _ = printf "Some part of <%s ...>%s</%s> doesn't look like a value of the implied type" elname s elname
+
 -- Get words of string data from all immediate children.
 childText :: Element -> [String]
 childText = concat . map (words . cdData) . onlyText . elContent
-
--- Get the named numeric attribute from the element and parse it.
--- The only thing that really makes it numeric is the typeclass Num...
-extractNumAttr :: (Read b, Num b) => String -> Element -> Either String b
-extractNumAttr name el = let errf _ = printf "Element \"%s\" requires attribute \"%s\" to be numeric" (rawElName el) name
-                         in extractAttr name
-                                        (modLeft errf . readEither)
-                                        el
 
 -- Get the named attribute from the element and parse it.
 extractAttr :: String -> (String -> Either String b) -> Element -> Either String b

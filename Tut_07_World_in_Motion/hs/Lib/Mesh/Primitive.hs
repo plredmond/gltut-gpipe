@@ -1,10 +1,8 @@
 {-# LANGUAGE StandaloneDeriving #-}
 
 module Lib.Mesh.Primitive
-( Primitive()
-, mkPrimitive
-, Command
-, Selection
+( mkPrimitive
+, Primitive
 )where
 
 -- hackage
@@ -12,6 +10,7 @@ import Graphics.GPipe (Triangle(..), Line(..), Point(..))
 import Text.XML.Light (Element)
 import Text.Printf (printf)
 import Control.Monad (forM_)
+import Text.Read (readEither)
 
 -- local
 import Lib.Mesh.Util
@@ -19,14 +18,13 @@ import Lib.Mesh.XML
 
 -- Primitive ------------------------------------------------------------------
 
-data Primitive = Prim Command Selection
-                 deriving (Show, Read, Eq)
+type Primitive = (Command, Selection)
 
 mkPrimitive :: Element -> Either String Primitive
 mkPrimitive el = do
    cmd <- mkCommand el
    sel <- mkSelection el
-   return $ Prim cmd sel
+   return (cmd, sel)
 
 -- Command --------------------------------------------------------------------
 
@@ -69,19 +67,19 @@ mkSelectionArray el = do
     return $ Left (start, count) -- non-monadic Left; this is an array selection
     where
         extractPosNumAttr name = do
-            num <- extractNumAttr name el
+            num <- let errf _ = printf "Arrays element \"%s\" attribute is invalid" name
+                   in modLeft errf . extractAttr name readEither $ el
             guard (num >= 0)
                   $ printf "Element \"%s\" requires attribute \"%s\" value, %d, to be positive" (rawElName el) name num
             return num
 
 mkSelectionIndex :: Element -> Either String Selection
 mkSelectionIndex el = do
-    inds <- let strs = childText el
-                errf _ = printf "Some part of <indices ...>%s</indices> doesn't look like an integral value" (unwords strs)
-            in modLeft errf . readManyEither $ strs
+    inds <- extractList readEither el
     guard (length inds > 0) "Indices element must contain values"
     forM_ inds $ \ind -> do
-        guard (ind >= 0) $ printf "Indices element must contain all positive values; saw %s" (show ind)
+        guard (ind >= 0)
+              $ printf "Indices element must contain all positive values; saw %s" (show ind)
     return $ Right inds -- non-monadic Right; this is an index selection
 
 -- eof
