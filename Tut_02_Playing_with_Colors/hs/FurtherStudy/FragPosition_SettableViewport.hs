@@ -1,54 +1,44 @@
-import System.Environment (getArgs, getProgName)
+import qualified Graphics.GLTut.Framework as Framework
 import qualified Graphics.UI.GLUT as GLUT
+
 import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
+import System.Environment (getArgs)
+
 main :: IO ()
 main = do
-    GLUT.getArgsAndInitialize
-    n <- getProgName
     a <- getArgs
-    newWindow
-        n -- window title
-        (300:.200:.()) -- desired window position
-        (500:.500:.()) -- desired window size
-        (displayIO $ parseArgs n a)
-        initWindow
-    GLUT.mainLoop
+    Framework.main keyboard (displayIO $ parseArgs a) (\_ -> return ())
 
 -- This is not a good way to handle command-line arguments.
-parseArgs :: String -> [String] -> Vec2 Float
-parseArgs name argv = if P.length argv == 2
-                      then fromList $ P.map read argv
-                      else error $ "USAGE: "++name++" offset-x offset-y"
+parseArgs :: [String] -> Vec2 Float
+parseArgs argv = if P.length argv == 2
+                 then fromList $ P.map read argv
+                 else error $ "USAGE: prog offset-x offset-y"
 
-initWindow :: GLUT.Window -> IO ()
-initWindow w = do
-    GLUT.idleCallback GLUT.$= Just (GLUT.postRedisplay $ Just w)
-    GLUT.keyboardMouseCallback GLUT.$= Just onKeyMouse
-    where
-        onKeyMouse :: GLUT.Key -> GLUT.KeyState -> GLUT.Modifiers -> GLUT.Position -> IO ()
-        onKeyMouse (GLUT.Char '\ESC') GLUT.Down _ _ = do GLUT.leaveMainLoop
-        onKeyMouse _ _ _ _ = do return ()
+keyboard :: Char -> GLUT.Position -> IO ()
+keyboard '\ESC' _ = do GLUT.leaveMainLoop
+keyboard _      _ = do return ()
 
-displayIO :: Vec2 Float -> Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
+displayIO :: Vec2 Float -> Vec2 Int -> IO (FrameBuffer RGBFormat () ())
 displayIO offset size = do
     return $ display offset size
 
-display :: Vec2 Float -> Vec2 Int -> FrameBuffer RGBAFormat () ()
+display :: Vec2 Float -> Vec2 Int -> FrameBuffer RGBFormat () ()
 display offset size = draw fragments cleared
     where
         -- draw -- curry blending mode and boolean color mask onto paintColor
-        draw :: FragmentStream (Color RGBAFormat (Fragment Float))
-                -> FrameBuffer RGBAFormat () ()
-                -> FrameBuffer RGBAFormat () ()
-        draw = paintColor NoBlending (RGBA (vec True) True)
+        draw :: FragmentStream (Color RGBFormat (Fragment Float))
+                -> FrameBuffer RGBFormat () ()
+                -> FrameBuffer RGBFormat () ()
+        draw = paintColor NoBlending (RGB $ vec True)
         -- cleared -- a solid color framebuffer
-        cleared :: FrameBuffer RGBAFormat () ()
-        cleared = newFrameBufferColor $ RGBA (vec 0) 1
+        cleared :: FrameBuffer RGBFormat () ()
+        cleared = newFrameBufferColor (RGB $ vec 0)
         -- fragment stream
-        fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
+        fragments :: FragmentStream (Color RGBFormat (Fragment Float))
         fragments = fmap fs
                   $ rasterizeBack
                   $ fmap (vs (toGPU $ append offset (vec 0))
@@ -78,8 +68,8 @@ vs_clip2win (w:.h:.()) pos@(_:._:._:.hom_w:.()) = (x*w):.(y*h):.z:.()
 vs :: Vec4 (Vertex Float) -> Vec2 (Vertex Float) -> Vec4 (Vertex Float) -> (Vec4 (Vertex Float), Vec3 (Vertex Float))
 vs offset size pos = let pos' = pos + offset in (pos', vs_clip2win size pos')
 
-fs :: Vec3 (Fragment Float) -> Color RGBAFormat (Fragment Float)
-fs (_:.y:._:.()) = RGBA outputColor 1
+fs :: Vec3 (Fragment Float) -> Color RGBFormat (Fragment Float)
+fs (_:.y:._:.()) = RGB outputColor
     where
         lerpValue = y / 500
         outputColor = vec $ mix 1 0.2 lerpValue
