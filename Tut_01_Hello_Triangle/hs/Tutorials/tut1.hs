@@ -11,23 +11,23 @@ keyboard :: Char -> GLUT.Position -> IO ()
 keyboard '\ESC' _ = do GLUT.leaveMainLoop
 keyboard _      _ = do return ()
 
-displayIO :: Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
+displayIO :: Vec2 Int -> IO (FrameBuffer RGBFormat () ())
 displayIO size = do
     return $ display size
 
-display :: Vec2 Int -> FrameBuffer RGBAFormat () ()
+display :: Vec2 Int -> FrameBuffer RGBFormat () ()
 display _ = draw fragments cleared
     where
         -- draw -- curry blending mode and boolean color mask onto paintColor
-        draw :: FragmentStream (Color RGBAFormat (Fragment Float))
-                -> FrameBuffer RGBAFormat () ()
-                -> FrameBuffer RGBAFormat () ()
-        draw = paintColor NoBlending (RGBA (vec True) True)
+        draw :: FragmentStream (Color RGBFormat (Fragment Float))
+                -> FrameBuffer RGBFormat () ()
+                -> FrameBuffer RGBFormat () ()
+        draw = paintColor NoBlending (RGB $ vec True)
         -- cleared -- a solid color framebuffer
-        cleared :: FrameBuffer RGBAFormat () ()
-        cleared = newFrameBufferColor $ RGBA (vec 0) 1
+        cleared :: FrameBuffer RGBFormat () ()
+        cleared = newFrameBufferColor (RGB $ vec 0)
         -- fragment stream
-        fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
+        fragments :: FragmentStream (Color RGBFormat (Fragment Float))
         fragments = fmap fs
                   $ rasterizeBack
                   $ fmap vs
@@ -43,7 +43,7 @@ stream = toGPUStream TriangleList $
 vs :: Vec4 (Vertex Float) -> (Vec4 (Vertex Float), ())
 vs pos = (pos, ())
 
-fs :: () -> Color RGBAFormat (Fragment Float)
-fs _ = RGBA (vec 1) 1
+fs :: () -> Color RGBFormat (Fragment Float)
+fs _ = RGB $ vec 1
 
 -- eof
