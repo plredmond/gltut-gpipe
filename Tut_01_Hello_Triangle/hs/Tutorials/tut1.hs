@@ -5,22 +5,18 @@ import Graphics.GPipe
 import Data.Vec
 
 main :: IO ()
-main = Framework.main keyboard displayIO initialize
+main = Framework.main keyboard displayIO (\_ -> return ())
 
 keyboard :: Char -> GLUT.Position -> IO ()
 keyboard '\ESC' _ = do GLUT.leaveMainLoop
 keyboard _      _ = do return ()
-
-initialize :: GLUT.Window -> IO ()
-initialize w = do
-    GLUT.idleCallback GLUT.$= Just (GLUT.postRedisplay $ Just w)
 
 displayIO :: Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
 displayIO size = do
     return $ display size
 
 display :: Vec2 Int -> FrameBuffer RGBAFormat () ()
-display size = draw fragments cleared
+display _ = draw fragments cleared
     where
         -- draw -- curry blending mode and boolean color mask onto paintColor
         draw :: FragmentStream (Color RGBAFormat (Fragment Float))
