@@ -1,28 +1,19 @@
-import System.Environment (getProgName)
+import qualified Graphics.GLTut.Framework as Framework
 import qualified Graphics.UI.GLUT as GLUT
+
 import Graphics.GPipe
 import Data.Vec
 
 main :: IO ()
-main = do
-    GLUT.getArgsAndInitialize
-    n <- getProgName
-    newWindow
-        n -- window title
-        (300:.200:.()) -- desired window position
-        (500:.500:.()) -- desired window size
-        displayIO
-        initWindow
-    GLUT.mainLoop
+main = Framework.main keyboard displayIO initialize
 
-initWindow :: GLUT.Window -> IO ()
-initWindow w = do
+keyboard :: Char -> GLUT.Position -> IO ()
+keyboard '\ESC' _ = do GLUT.leaveMainLoop
+keyboard _      _ = do return ()
+
+initialize :: GLUT.Window -> IO ()
+initialize w = do
     GLUT.idleCallback GLUT.$= Just (GLUT.postRedisplay $ Just w)
-    GLUT.keyboardMouseCallback GLUT.$= Just onKeyMouse
-    where
-        onKeyMouse :: GLUT.Key -> GLUT.KeyState -> GLUT.Modifiers -> GLUT.Position -> IO ()
-        onKeyMouse (GLUT.Char '\ESC') GLUT.Down _ _ = do GLUT.leaveMainLoop
-        onKeyMouse _ _ _ _ = do return ()
 
 displayIO :: Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
 displayIO size = do

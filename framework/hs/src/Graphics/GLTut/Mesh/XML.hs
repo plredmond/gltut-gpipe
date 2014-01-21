@@ -1,4 +1,4 @@
-module Lib.Mesh.XML where
+module Graphics.GLTut.Mesh.XML where
 
 -- hackage
 import Text.XML.Light
@@ -6,7 +6,7 @@ import Text.Printf (printf)
 import Text.Read (readEither)
 
 -- local
-import Lib.Mesh.Util
+import Graphics.GLTut.Mesh.Util
 
 -- XML functions --------------------------------------------------------------
 

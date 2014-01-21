@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Lib.Mesh.PrimToGPU
+module Graphics.GLTut.Mesh.PrimToGPU
 ( Attr()
 , attr
 , attrStride
@@ -20,7 +20,7 @@ import Text.Printf (printf)
 import Data.List.Split (chunksOf)
 
 -- local
-import Lib.Mesh.Util
+import Graphics.GLTut.Mesh.Util
 
 --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 data Attr = Attribute Int [Float] deriving (Show, Eq)

@@ -1,6 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
-
-module Lib.Mesh
+module Graphics.GLTut.Mesh
 ( Mesh()
 , readMesh
 , mkMesh
@@ -19,11 +17,12 @@ import Data.List ((\\))
 import Text.Printf (printf)
 
 -- local
-import Lib.Mesh.Util
-import Lib.Mesh.XML
-import Lib.Mesh.Attribute
-import Lib.Mesh.Primitive
-import qualified Lib.Mesh.PrimToGPU as PTG
+import Graphics.GLTut.Tri
+import Graphics.GLTut.Mesh.Util
+import Graphics.GLTut.Mesh.XML
+import Graphics.GLTut.Mesh.Attribute
+import Graphics.GLTut.Mesh.Primitive
+import qualified Graphics.GLTut.Mesh.PrimToGPU as PTG
 
 -- Mesh -----------------------------------------------------------------------
 

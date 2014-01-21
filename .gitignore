@@ -9,7 +9,6 @@ cabal-dev/
 
 Test/
 data/
-framework/
 glsdk/
 html/
 
@@ -23,6 +22,7 @@ learning/
 *.h
 *.xml
 *.cpp
+*.hpp
 *.make
 Makefile
 

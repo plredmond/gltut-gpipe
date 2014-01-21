@@ -1,4 +1,4 @@
-module Lib.Mesh.Attribute
+module Graphics.GLTut.Mesh.Attribute
 ( mkAttribute
 , mkVAO
 ) where
@@ -10,9 +10,9 @@ import Text.Read (readEither)
 import Text.Printf (printf)
 
 -- local
-import Lib.Mesh.XML
-import Lib.Mesh.Util
-import qualified Lib.Mesh.PrimToGPU as PTG
+import Graphics.GLTut.Mesh.XML
+import Graphics.GLTut.Mesh.Util
+import qualified Graphics.GLTut.Mesh.PrimToGPU as PTG
 
 -- Attribute ------------------------------------------------------------------
 

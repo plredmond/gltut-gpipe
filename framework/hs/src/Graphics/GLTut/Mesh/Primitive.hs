@@ -1,8 +1,10 @@
 {-# LANGUAGE StandaloneDeriving #-}
 
-module Lib.Mesh.Primitive
+module Graphics.GLTut.Mesh.Primitive
 ( mkPrimitive
 , Primitive
+, Command
+, Selection
 )where
 
 -- hackage
@@ -13,8 +15,9 @@ import Control.Monad (forM_)
 import Text.Read (readEither)
 
 -- local
-import Lib.Mesh.Util
-import Lib.Mesh.XML
+import Graphics.GLTut.Tri
+import Graphics.GLTut.Mesh.Util
+import Graphics.GLTut.Mesh.XML
 
 -- Primitive ------------------------------------------------------------------
 
