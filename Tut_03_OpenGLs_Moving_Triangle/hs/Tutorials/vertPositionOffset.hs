@@ -1,49 +1,31 @@
-import System.Environment (getProgName)
+import qualified Graphics.GLTut.Framework as Framework
 import qualified Graphics.UI.GLUT as GLUT
+
 import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
 main :: IO ()
-main = do
-    GLUT.getArgsAndInitialize
-    n <- getProgName
-    newWindow
-        n -- window title
-        (300:.200:.()) -- desired window position
-        (500:.500:.()) -- desired window size
-        displayIO
-        initWindow
-    GLUT.mainLoop
+main = Framework.main keyboard displayIO initialize
 
-initWindow :: GLUT.Window -> IO ()
-initWindow w = do
-    GLUT.idleCallback GLUT.$= Just (GLUT.postRedisplay $ Just w)
-    GLUT.keyboardMouseCallback GLUT.$= Just onKeyMouse
-    where
-        onKeyMouse :: GLUT.Key -> GLUT.KeyState -> GLUT.Modifiers -> GLUT.Position -> IO ()
-        onKeyMouse (GLUT.Char '\ESC') GLUT.Down _ _ = do GLUT.leaveMainLoop
-        onKeyMouse _ _ _ _ = do return ()
+initialize :: GLUT.Window -> IO ()
+initialize w = GLUT.idleCallback GLUT.$= (Just . GLUT.postRedisplay . Just $ w)
 
-displayIO :: Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
+keyboard :: Char -> GLUT.Position -> IO ()
+keyboard '\ESC' _ = do GLUT.leaveMainLoop
+keyboard _      _ = do return ()
+
+displayIO :: Vec2 Int -> IO (FrameBuffer RGBFormat () ())
 displayIO size = do
     milliseconds <- GLUT.get GLUT.elapsedTime
     return $ display size (fromIntegral milliseconds / 1000)
 
-display :: Vec2 Int -> Float -> FrameBuffer RGBAFormat () ()
-display size sec = draw fragments cleared
+display :: Vec2 Int -> Float -> FrameBuffer RGBFormat () ()
+display _ sec = draw fragments cleared
     where
         xyoffset = V.append (computePositionOffsets sec) (vec 0)
-        -- draw -- curry blending mode and boolean color mask onto paintColor
-        draw :: FragmentStream (Color RGBAFormat (Fragment Float))
-                -> FrameBuffer RGBAFormat () ()
-                -> FrameBuffer RGBAFormat () ()
-        draw = paintColor NoBlending (RGBA (vec True) True)
-        -- cleared -- a solid color framebuffer
-        cleared :: FrameBuffer RGBAFormat () ()
-        cleared = newFrameBufferColor $ RGBA (vec 0) 1
-        -- fragment stream
-        fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
+        draw = paintColor NoBlending (RGB $ vec True)
+        cleared = newFrameBufferColor (RGB $ vec 0)
         fragments = fmap fs
                   $ rasterizeBack
                   $ fmap (vs $ toGPU xyoffset)
@@ -56,18 +38,19 @@ stream = toGPUStream TriangleList
     , (-0.25):.(-0.25):.0:.1:.()
     ]
 
+-- Calculate the offset on the cpu.
 computePositionOffsets :: Float -> Vec2 Float
-computePositionOffsets elapsedTime = (0.5 * cos (currTimeThroughLoop * scale)) :.
-                                     (0.5 * sin (currTimeThroughLoop * scale)) :. ()
+computePositionOffsets elapsedTime = (0.5 * cos (currTimeThroughLoop * sf)) :.
+                                     (0.5 * sin (currTimeThroughLoop * sf)) :. ()
     where
         loopDuration = 5
-        scale = pi * 2 / loopDuration
+        sf = pi * 2 / loopDuration
         currTimeThroughLoop = mod' elapsedTime loopDuration
 
 vs :: Vec4 (Vertex Float) -> Vec4 (Vertex Float) -> (Vec4 (Vertex Float), ())
 vs xyoffset pos = (xyoffset + pos, ())
 
-fs :: () -> Color RGBAFormat (Fragment Float)
-fs _ = RGBA (vec 1) 1
+fs :: () -> Color RGBFormat (Fragment Float)
+fs _ = RGB $ vec 1
 
 -- eof

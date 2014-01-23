@@ -1,51 +1,35 @@
-import System.Environment (getProgName)
+import qualified Graphics.GLTut.Framework as Framework
 import qualified Graphics.UI.GLUT as GLUT
+
 import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
 main :: IO ()
-main = do
-    GLUT.getArgsAndInitialize
-    n <- getProgName
-    newWindow
-        n -- window title
-        (300:.200:.()) -- desired window position
-        (500:.500:.()) -- desired window size
-        (displayIO $ toGPU 5)
-        initWindow
-    GLUT.mainLoop
+main = Framework.main keyboard displayIO initialize
 
-initWindow :: GLUT.Window -> IO ()
-initWindow w = do
-    GLUT.idleCallback GLUT.$= Just (GLUT.postRedisplay $ Just w)
-    GLUT.keyboardMouseCallback GLUT.$= Just onKeyMouse
-    where
-        onKeyMouse :: GLUT.Key -> GLUT.KeyState -> GLUT.Modifiers -> GLUT.Position -> IO ()
-        onKeyMouse (GLUT.Char '\ESC') GLUT.Down _ _ = do GLUT.leaveMainLoop
-        onKeyMouse _ _ _ _ = do return ()
+initialize :: GLUT.Window -> IO ()
+initialize w = GLUT.idleCallback GLUT.$= (Just . GLUT.postRedisplay . Just $ w)
 
-displayIO :: Vertex Float -> Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
-displayIO duration size = do
+keyboard :: Char -> GLUT.Position -> IO ()
+keyboard '\ESC' _ = do GLUT.leaveMainLoop
+keyboard _      _ = do return ()
+
+displayIO :: Vec2 Int -> IO (FrameBuffer RGBFormat () ())
+displayIO size = do
     milliseconds <- GLUT.get GLUT.elapsedTime
-    return $ display duration size (fromIntegral milliseconds / 1000)
+    return $ display size (fromIntegral milliseconds / 1000)
 
-display :: Vertex Float -> Vec2 Int -> Float -> FrameBuffer RGBAFormat () ()
-display dur size sec = P.foldr draw cleared fragments_s
+display :: Vec2 Int -> Float -> FrameBuffer RGBFormat () ()
+display _ sec = P.foldr draw cleared fragments_s
     where
-        -- draw -- curry blending mode and boolean color mask onto paintColor
-        draw :: FragmentStream (Color RGBAFormat (Fragment Float))
-                -> FrameBuffer RGBAFormat () ()
-                -> FrameBuffer RGBAFormat () ()
-        draw = paintColor NoBlending (RGBA (vec True) True)
-        -- cleared -- a solid color framebuffer
-        cleared :: FrameBuffer RGBAFormat () ()
-        cleared = newFrameBufferColor $ RGBA (vec 0) 1
+        draw = paintColor NoBlending (RGB $ vec True)
+        cleared = newFrameBufferColor (RGB $ vec 0)
         -- list of fragment streams
-        fragments_s :: [FragmentStream (Color RGBAFormat (Fragment Float))]
+        fragments_s :: [FragmentStream (Color RGBFormat (Fragment Float))]
         fragments_s = P.map (fmap fs)
                     $ P.map rasterizeBack
-                    $ P.map (\(stream', sec') -> fmap (vs dur sec') stream')
+                    $ P.map (\(stream', sec') -> fmap (vs sec') stream')
                     [ (stream, toGPU sec)
                     , (stream, toGPU $ sec + 2.5)
                     ]
@@ -57,20 +41,21 @@ stream = toGPUStream TriangleList
     , (-0.25):.(-0.25):.0:.1:.()
     ]
 
+-- Calculate the offset in a vertex shader.
 computePositionOffsets :: Vertex Float -> Vec2 (Vertex Float)
-computePositionOffsets elapsedTime = (0.5 * cos (currTimeThroughLoop * scale)) :.
-                                     (0.5 * sin (currTimeThroughLoop * scale)) :. ()
+computePositionOffsets elapsedTime = (0.5 * cos (currTimeThroughLoop * sf)) :.
+                                     (0.5 * sin (currTimeThroughLoop * sf)) :. ()
     where
         loopDuration = 5
-        scale = pi * 2 / loopDuration
+        sf = pi * 2 / loopDuration
         currTimeThroughLoop = mod' elapsedTime loopDuration
 
-vs :: Vertex Float -> Vertex Float -> Vec4 (Vertex Float) -> (Vec4 (Vertex Float), ())
-vs dur sec pos = (xyoffset + pos, ())
+vs :: Vertex Float -> Vec4 (Vertex Float) -> (Vec4 (Vertex Float), ())
+vs sec pos = (xyoffset + pos, ())
     where
         xyoffset = V.append (computePositionOffsets sec) (vec 0)
 
-fs :: () -> Color RGBAFormat (Fragment Float)
-fs _ = RGBA (vec 1) 1
+fs :: () -> Color RGBFormat (Fragment Float)
+fs _ = RGB $ vec 1
 
 -- eof
