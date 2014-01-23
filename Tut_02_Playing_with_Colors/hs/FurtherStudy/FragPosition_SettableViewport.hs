@@ -29,16 +29,8 @@ displayIO offset size = do
 display :: Vec2 Float -> Vec2 Int -> FrameBuffer RGBFormat () ()
 display offset size = draw fragments cleared
     where
-        -- draw -- curry blending mode and boolean color mask onto paintColor
-        draw :: FragmentStream (Color RGBFormat (Fragment Float))
-                -> FrameBuffer RGBFormat () ()
-                -> FrameBuffer RGBFormat () ()
         draw = paintColor NoBlending (RGB $ vec True)
-        -- cleared -- a solid color framebuffer
-        cleared :: FrameBuffer RGBFormat () ()
         cleared = newFrameBufferColor (RGB $ vec 0)
-        -- fragment stream
-        fragments :: FragmentStream (Color RGBFormat (Fragment Float))
         fragments = fmap fs
                   $ rasterizeBack
                   $ fmap (vs (toGPU $ append offset (vec 0))
