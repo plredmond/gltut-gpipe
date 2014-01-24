@@ -1,4 +1,6 @@
-module Lib.Load where
+module Graphics.GLTut.Load where
+
+-- Provide vec-file loading routines for tutorials 5, 6, and others.
 
 import Graphics.GPipe
 import Data.Vec

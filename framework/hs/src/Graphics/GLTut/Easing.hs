@@ -1,4 +1,6 @@
-module Lib.TimeFun where
+module Graphics.GLTut.Easing where
+
+-- Provide animation easing routines for tutorials 5, 6, and others.
 
 import Graphics.GPipe
 import Data.Vec

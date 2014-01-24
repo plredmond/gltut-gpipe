@@ -5,10 +5,15 @@ module Graphics.GLTut.Mesh
 , meshToGPU
 ) where
 
+-- Provide meshfile loading and to-gpu routines for tutorial 7 and others.
+
 -- hackage
+
 import Text.XML.Light hiding (Line)
+
 import qualified Data.IntMap.Lazy as IntMap
 import qualified Data.HashMap.Lazy as HashMap
+
 import Graphics.GPipe (PrimitiveStream, Triangle(), Line(), Point(), Vertex())
 import Data.Traversable (forM)
 import Data.IntMap.Lazy (IntMap)
@@ -17,11 +22,13 @@ import Data.List ((\\))
 import Text.Printf (printf)
 
 -- local
+
 import Graphics.GLTut.Tri
 import Graphics.GLTut.Mesh.Util
 import Graphics.GLTut.Mesh.XML
 import Graphics.GLTut.Mesh.Attribute
 import Graphics.GLTut.Mesh.Primitive
+
 import qualified Graphics.GLTut.Mesh.PrimToGPU as PTG
 
 -- Mesh -----------------------------------------------------------------------

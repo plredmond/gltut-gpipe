@@ -1,6 +1,6 @@
 module Graphics.GLTut.Tri where
 
--- (Tri a b c) is like (Either a b) except it has three type parameters. ------
+-- Provide a data structure like (Either a b) but with three type parameters.
 
 data Tri a b c = Jyan a
                | Ken b

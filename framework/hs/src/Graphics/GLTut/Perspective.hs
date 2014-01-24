@@ -1,4 +1,6 @@
-module Lib.Perspective where
+module Graphics.GLTut.Perspective where
+
+-- Provide perspective projection matrices for tutorials 5, 6, and others.
 
 import Data.Vec
 
