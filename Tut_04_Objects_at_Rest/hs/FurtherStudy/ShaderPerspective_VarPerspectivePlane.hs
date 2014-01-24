@@ -1,78 +1,67 @@
-import System.Environment (getArgs, getProgName)
+import qualified Graphics.GLTut.Framework as Framework
+import qualified Graphics.GLTut.VecFile as VecFile
+import qualified Lib.VarProjectionPlane
 import qualified Graphics.UI.GLUT as GLUT
+import qualified Paths_gltut_tut04 as Paths
+
 import Graphics.GPipe
 import Data.Vec as V
 import Prelude as P
 
-import Paths_gltut04
-
-import Lib.Load
-import Lib.TimeFun
-
 main :: IO ()
 main = do
-    GLUT.getArgsAndInitialize
-    n <- getProgName
-    f <- getDataFileName "model.vec4"
-    s <- readFile f
-    newWindow
-        n -- window title
-        (300:.200:.()) -- desired window position
-        (500:.500:.()) -- desired window size
-        (displayIO $ readStream s)
-        initWindow
-    GLUT.mainLoop
+    dat <- Paths.getDataFileName "model.vec4" >>= readFile
+    Framework.main keyboard (displayIO $ VecFile.readStream dat) initialize
 
-initWindow :: GLUT.Window -> IO ()
-initWindow w = do
-    GLUT.idleCallback GLUT.$= Just (GLUT.postRedisplay $ Just w)
-    GLUT.keyboardMouseCallback GLUT.$= Just onKeyMouse
-    where
-        onKeyMouse :: GLUT.Key -> GLUT.KeyState -> GLUT.Modifiers -> GLUT.Position -> IO ()
-        onKeyMouse (GLUT.Char '\ESC') GLUT.Down _ _ = do GLUT.leaveMainLoop
-        onKeyMouse _ _ _ _ = do return ()
+initialize :: GLUT.Window -> IO ()
+initialize w = GLUT.idleCallback GLUT.$= (Just . GLUT.postRedisplay . Just $ w)
 
-displayIO :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> IO (FrameBuffer RGBAFormat () ())
+keyboard :: Char -> GLUT.Position -> IO ()
+keyboard '\ESC' _ = do GLUT.leaveMainLoop
+keyboard _      _ = do return ()
+
+displayIO :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> IO (FrameBuffer RGBFormat () ())
 displayIO stream size = do
     milliseconds <- GLUT.get GLUT.elapsedTime
     return $ display stream size (fromIntegral milliseconds / 1000)
 
-display :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> Float -> FrameBuffer RGBAFormat () ()
+display :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> Float -> FrameBuffer RGBFormat () ()
 display stream size sec = draw pp $ draw fragments cleared
     where
-        -- draw -- curry blending mode and boolean color mask onto paintColor
-        draw :: FragmentStream (Color RGBAFormat (Fragment Float))
-                -> FrameBuffer RGBAFormat () ()
-                -> FrameBuffer RGBAFormat () ()
-        draw = paintColor NoBlending (RGBA (vec True) True)
-        -- cleared -- a solid color framebuffer
-        cleared :: FrameBuffer RGBAFormat () ()
-        cleared = newFrameBufferColor $ RGBA (vec 0) 1
-        -- fragment stream
-        (ppPos, pp) = projectionPlane sec
-        fragments :: FragmentStream (Color RGBAFormat (Fragment Float))
+        draw = paintColor NoBlending (RGB $ vec True)
+        cleared = newFrameBufferColor (RGB $ vec 0)
         fragments = fmap fs
                   $ rasterizeBack
-                  $ fmap (vs (toGPU $ V.map fromIntegral size) offset (toGPU 1) (toGPU 1) (toGPU 3) (toGPU $ V.take n3 ppPos))
-                  -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
+                  $ fmap (vs offset frustrumScale zNear zFar (toGPU $ V.map fromIntegral size) (toGPU $ ppPos))
                   stream
-        -- offset is a constant uniform calculated only once
-        offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Y of the vertex data by -2 here.
+        (ppPos, pp) = Lib.VarProjectionPlane.vpp sec
+        -- constant uniforms, calculated once
+        offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Z of the vertex data by -2 here instead of duplicating the data inside the code.
+        frustrumScale = toGPU 1
+        zNear = toGPU 1
+        zFar = toGPU 3
 
--- Offset the position. Perform projection manually. Maintain aspect ratio.
-vs :: Vec2 (Vertex Float) -> Vec4 (Vertex Float) -> Vertex Float -> Vertex Float -> Vertex Float -> Vec3 (Vertex Float) -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
-vs size offset frustrumScale zNear zFar (ppX:.ppY:.ppZ:.()) (pos, col) = (clipPos, col)
+-- Offset the position. Perform projection manually.
+vs  :: Vec4 (Vertex Float)
+    -> Vertex Float
+    -> Vertex Float
+    -> Vertex Float
+    -> Vec2 (Vertex Float)
+    -> Vec4 (Vertex Float)
+    -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
+    -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
+vs offset frustrumScale zNear zFar size (ppX:.ppY:.ppZ:._:.()) (pos, col) = (clipPos, col)
     where
         aspectRatio = let w:.h:.() = size in w / h
-        camX:.camY:.camZ:.camW:.() = pos + offset
+        camX:.camY:.camZ:._:.() = pos + offset
         pr1 = (zNear + zFar) / (zNear - zFar)
         pr2 = (2 * zNear * zFar) / (zNear - zFar)
         clipPos = (ppX + camX * frustrumScale / aspectRatio) :.
                   (ppY + camY * frustrumScale) :.
                   (camZ * pr1 + pr2) :.
-                  (camZ / (negate $ abs ppZ)) :. ()
+                  (camZ / (negate . abs $ ppZ)) :. ()
 
-fs :: Vec4 (Fragment Float) -> Color RGBAFormat (Fragment Float)
-fs col = RGBA (V.take n3 col) (V.last col)
+fs :: Vec4 (Fragment Float) -> Color RGBFormat (Fragment Float)
+fs = RGB . V.take n3
 
 -- eof
