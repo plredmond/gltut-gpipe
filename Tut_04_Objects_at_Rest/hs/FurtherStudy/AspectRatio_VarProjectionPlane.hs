@@ -1,7 +1,7 @@
 import qualified Graphics.GLTut.Framework as Framework
 import qualified Graphics.GLTut.Perspective as Perspective
 import qualified Graphics.GLTut.VecFile as VecFile
-import qualified Lib.VarProjectionPlane
+import qualified Graphics.GLTut.Tut04.VarProjectionPlane as VarProjectionPlane
 import qualified Graphics.UI.GLUT as GLUT
 import qualified Paths_gltut_tut04 as Paths
 
@@ -35,7 +35,7 @@ display stream size sec = draw pp $ draw fragments cleared
                   $ rasterizeBack
                   $ fmap (vs offset matrix)
                   stream
-        (ppPos, pp) = Lib.VarProjectionPlane.vpp sec
+        (ppPos, pp) = VarProjectionPlane.vpp sec
         -- constant uniforms, calculated once
         offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Z of the vertex data by -2 here instead of duplicating the data inside the code.
         -- variable uniforms, calculated every frame

@@ -1,4 +1,4 @@
-module Lib.VarProjectionPlane
+module Graphics.GLTut.Tut04.VarProjectionPlane
 ( vpp
 ) where
 
@@ -21,6 +21,7 @@ vpp sec = (offset, frags)
               $ fmap (\pos -> (pos + offset_unif, ()))
               stream
 
+stream :: PrimitiveStream Line (Vec4 (Vertex Float))
 stream = toGPUStream LineStrip
     [ (-1):.(-1):.0:.0:.()
     , (-1):.( 1):.0:.0:.()
