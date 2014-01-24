@@ -38,7 +38,7 @@ display stream size sec = draw pp $ draw fragments cleared
         -- constant uniforms, calculated once
         offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Z of the vertex data by -2 here instead of duplicating the data inside the code.
         frustrumScale = toGPU 1
-        zNear = toGPU 1
+        zNear = toGPU 0.5
         zFar = toGPU 3
 
 -- Offset the position. Perform projection manually.
