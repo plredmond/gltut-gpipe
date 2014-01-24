@@ -5,10 +5,11 @@ cabal-version:       >= 1.10
 data-files:          model.vec4
 
 library
-  other-modules:       Paths_gltut_tut04
   exposed-modules:     Lib.VarProjectionPlane
+  other-modules:       Paths_gltut_tut04
   build-depends:       base>=4.6, GPipe>=1.4, Vec>=1.0, gltut-framework>=0.1
   default-language:    Haskell2010
+  ghc-options:         -Wall -fno-warn-unused-do-bind
 
 executable             OrthoCube
   main-is:             OrthoCube.hs
