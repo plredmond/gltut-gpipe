@@ -8,7 +8,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Graphics.GLTut.Framework,
-                       Graphics.GLTut.Load,
+                       Graphics.GLTut.VecFile,
                        Graphics.GLTut.Easing,
                        Graphics.GLTut.Perspective,
                        Graphics.GLTut.Tri,

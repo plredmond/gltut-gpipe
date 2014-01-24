@@ -1,4 +1,4 @@
-module Graphics.GLTut.Load where
+module Graphics.GLTut.VecFile where
 
 -- Provide vec-file loading routines for tutorials 5, 6, and others.
 
