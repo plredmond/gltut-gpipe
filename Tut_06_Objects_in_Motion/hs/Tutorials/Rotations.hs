@@ -49,7 +49,7 @@ display tetrahedron rs = draw fragments cleared
                    in P.map mk g_instanceList
         cam2clip = toGPU $ perspective 1 61 (45 * pi / 180) (RenderState.getAspectRatio rs)
 
--- Covert a scene element to a FragmentStream.
+-- Convert a scene element to a FragmentStream.
 mkFragments :: Mat44 (Vertex Float)
             -> Models.PrimStream
             -> Mat44 (Vertex Float)

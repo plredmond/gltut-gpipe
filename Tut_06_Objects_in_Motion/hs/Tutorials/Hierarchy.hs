@@ -69,7 +69,7 @@ display rs skel pose = draw fragments cleared
         -- variable uniforms, calculated every frame
         cam2clip = toGPU $ perspective 1 100 (45 * pi / 180) (RenderState.getAspectRatio rs)
 
--- Covert a scene element to a FragmentStream.
+-- Convert a scene element to a FragmentStream.
 mkFragments :: Mat44 (Vertex Float)
             -> (Mat44 Float, Models.PrimStream)
             -> FragmentStream (Color RGBFormat (Fragment Float))
