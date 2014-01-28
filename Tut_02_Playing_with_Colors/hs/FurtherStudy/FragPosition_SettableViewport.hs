@@ -18,14 +18,17 @@ parseArgs argv = if P.length argv == 2
                  then fromList $ P.map read argv
                  else error $ "USAGE: prog offset-x offset-y"
 
+-- Handle keyboard events.
 keyboard :: Char -> GLUT.Position -> IO ()
 keyboard '\ESC' _ = do GLUT.leaveMainLoop
 keyboard _      _ = do return ()
 
+-- Perform IO on behalf of display. Call display to produce the framebuffer.
 displayIO :: Vec2 Float -> Vec2 Int -> IO (FrameBuffer RGBFormat () ())
 displayIO offset size = do
     return $ display offset size
 
+-- Combine scene elements on a framebuffer.
 display :: Vec2 Float -> Vec2 Int -> FrameBuffer RGBFormat () ()
 display offset size = draw fragments cleared
     where

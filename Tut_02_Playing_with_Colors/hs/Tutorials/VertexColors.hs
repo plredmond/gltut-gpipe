@@ -7,14 +7,17 @@ import Data.Vec as V
 main :: IO ()
 main = Framework.main keyboard displayIO (\_ -> return ())
 
+-- Handle keyboard events.
 keyboard :: Char -> GLUT.Position -> IO ()
 keyboard '\ESC' _ = do GLUT.leaveMainLoop
 keyboard _      _ = do return ()
 
+-- Perform IO on behalf of display. Call display to produce the framebuffer.
 displayIO :: Vec2 Int -> IO (FrameBuffer RGBFormat () ())
 displayIO size = do
     return $ display size
 
+-- Combine scene elements on a framebuffer.
 display :: Vec2 Int -> FrameBuffer RGBFormat () ()
 display _ = draw fragments cleared
     where
