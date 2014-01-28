@@ -1,29 +1,33 @@
-module Lib.RenderState
+module Graphics.GLTut.RenderState
 ( RenderState()
-, mkRenderState
-, rsSize
-, rsSeconds
-, rsAspectRatio
+, new
+, getSize
+, getSeconds
+, getAspectRatio
 ) where
+
+-- Provide basic environmental information for tutorial 6 and others.
 
 import qualified Graphics.UI.GLUT as GLUT
 import Data.Vec as Vec
 
 data RenderState a = RenderState
-    { rsSize :: Vec2 a
-    , rsSeconds :: a
+    { getSize :: Vec2 a
+    , getSeconds :: a
     } deriving (Show, Eq)
 
 -- Construct a RenderState
 -- IO: Read GLUT.elapsedTime
-mkRenderState :: Fractional a => Vec2 Int -> IO (RenderState a)
-mkRenderState size = do
+new :: Fractional a => Vec2 Int -> IO (RenderState a)
+new size = do
     milliseconds <- GLUT.get GLUT.elapsedTime
     return RenderState
-        { rsSize = Vec.map fromIntegral size
-        , rsSeconds = fromIntegral milliseconds / 1000
+        { getSize = Vec.map fromIntegral size
+        , getSeconds = fromIntegral milliseconds / 1000
         }
 
-rsAspectRatio :: Fractional a => RenderState a -> a
-rsAspectRatio rs = let w:.h:.() = rsSize rs
-                   in  w / h
+getAspectRatio :: Fractional a => RenderState a -> a
+getAspectRatio rs = let w:.h:.() = getSize rs
+                    in  w / h
+
+-- eof

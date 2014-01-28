@@ -1,13 +1,23 @@
-module Lib.Skeleton where
+module Graphics.GLTut.Skeleton where
 
-import Prelude as P
-import Data.Vec as V
-import Data.HashMap.Lazy as H
-import Data.Maybe
-import Data.Fixed -- for mod'
-import Control.Monad -- for join
+-- Provide a posable hierarchical mesh structure for tutorial 6 and others.
+-- Might be a candidate for easy structure-based parallelization.
 
-import Lib.MatrixStack
+-- hackage
+
+import Prelude as Prelude
+import Data.Vec as Vec
+
+import qualified Data.HashMap.Lazy as HashMap
+
+import Data.HashMap.Lazy (HashMap)
+import Control.Monad (join)
+import Data.Fixed (mod')
+import Data.Maybe (fromJust)
+
+-- local
+
+import Graphics.GLTut.MatrixStack
 
 -- A posable skeleton.
 data Skeleton m a = Bone [SkelTrans a] [m]
@@ -43,32 +53,32 @@ data Extent a = Mod a
 
 -- Flatten a skeleton to a list of matrices paired with meshes.
 flattenSkel :: Floating a => MatrixStack a -> FrozenSkel m a -> [(Mat44 a, m)]
-flattenSkel mats (FrozenBone ts ms) = P.map (\m -> (mat, m)) ms
+flattenSkel mats (FrozenBone ts ms) = Prelude.map (\m -> (mat, m)) ms
     where
         mat = peek $ push mats ts
-flattenSkel mats (FrozenJoint ts sks) = join $ P.map (flattenSkel mats') sks
+flattenSkel mats (FrozenJoint ts sks) = join $ Prelude.map (flattenSkel mats') sks
     where
         mats' = push mats ts
 
 -- Freeze a skeleton's posable transformations according to the state.
 freezeSkel :: Num a => Pose a -> Skeleton m a -> FrozenSkel m a
-freezeSkel pose (Bone  ts ms ) = FrozenBone  (P.map (freezeSkelTrans pose) ts) ms
-freezeSkel pose (Joint ts sks) = FrozenJoint (P.map (freezeSkelTrans pose) ts) (P.map (freezeSkel pose) sks)
+freezeSkel pose (Bone  ts ms ) = FrozenBone  (Prelude.map (freezeSkelTrans pose) ts) ms
+freezeSkel pose (Joint ts sks) = FrozenJoint (Prelude.map (freezeSkelTrans pose) ts) (Prelude.map (freezeSkel pose) sks)
 
 -- Freeze a posable transformation according to the state.
 freezeSkelTrans :: Num a => Pose a -> SkelTrans a -> Transformation a
-freezeSkelTrans pose (Frozen t) = t
+freezeSkelTrans _    (Frozen     t) = t
 freezeSkelTrans pose (Bendy name t) = applyTransNumOp t $ pCurrent position
     where
-        position = fromJust $ H.lookup name pose -- error if not found
+        position = fromJust $ HashMap.lookup name pose -- FIXME: error if not found
 
 applyTransNumOp :: Num a => Transformation NumOp -> a -> Transformation a
 applyTransNumOp (Translate axis op) x = Translate axis (evalNumOp op x)
 applyTransNumOp (Scale     axis op) x = Scale     axis (evalNumOp op x)
 applyTransNumOp (RotateRad axis op) x = RotateRad axis (evalNumOp op x)
 applyTransNumOp (RotateDeg axis op) x = RotateDeg axis (evalNumOp op x)
-applyTransNumOp (TranslateAll  ops) x = TranslateAll $ V.map (\op -> evalNumOp op x) ops
-applyTransNumOp (ScaleAll      ops) x = ScaleAll     $ V.map (\op -> evalNumOp op x) ops
+applyTransNumOp (TranslateAll  ops) x = TranslateAll $ Vec.map (\op -> evalNumOp op x) ops
+applyTransNumOp (ScaleAll      ops) x = ScaleAll     $ Vec.map (\op -> evalNumOp op x) ops
 
 evalNumOp :: Num a => NumOp -> a -> a
 evalNumOp (Negate numop) = negate . (evalNumOp numop)
@@ -76,7 +86,7 @@ evalNumOp Num            = id
 
 -- Adjust a posable transformation up or down.
 adjustPose :: Real a => Bool -> String -> Pose a -> Pose a
-adjustPose b name pose = adjust mutate name pose
+adjustPose b name pose = HashMap.adjust mutate name pose
     where
         updn = if b then id else negate
         mutate p = let x = pCurrent p

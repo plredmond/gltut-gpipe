@@ -1,6 +1,8 @@
-module Lib.MatrixStack where
+module Graphics.GLTut.MatrixStack where
 
-import Prelude as P
+-- Provide matrix stack and matrix transformation datatypes for tutorial 6 and others.
+
+import Prelude as Prelude
 import Data.Vec as Vec
 
 data Axis = X | Y | Z deriving (Show, Eq)
@@ -49,7 +51,7 @@ push (MatrixStack ms) ts =
         [] -> MatrixStack [c]
         h:_ -> MatrixStack $ (multmm h c):ms
     where
-        cs = P.map trans2matrix ts      -- All current transformation matrices.
-        c = P.foldl multmm identity cs  -- Combined current transformation matrix.
+        cs = Prelude.map trans2matrix ts      -- All current transformation matrices.
+        c = Prelude.foldl multmm identity cs  -- Combined current transformation matrix.
 
 -- eof

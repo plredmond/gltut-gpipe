@@ -2,14 +2,22 @@ module Graphics.GLTut.VecFile where
 
 -- Provide vec-file loading routines for tutorials 5, 6, and others.
 
+-- A vec-file is a file with line-delimited vectors of whitespace delimited numbers.
+-- All of the vectors must have the same length.
+-- The first half of the vectors is zipped with the second half of the vectors in the final PrimitiveStream.
+
 import Graphics.GPipe
 import Data.Vec
 import Prelude as P
 
--- read a trangle-list from a string containing first vertex data and later color data
-readStream s = toGPUStream TriangleList (readTups s)
+-- Load a PrimitiveStream from a VecFile
+loadStream primcmd path indexes = do
+    dat <- readFile path
+    return (readStream primcmd dat indexes)
 
-readIndexedStream s ns = toIndexedGPUStream TriangleList (readTups s) ns
+-- Read a PrimitiveStream from a VecFile formatted string
+readStream p s [] = toGPUStream        p (readTups s)
+readStream p s ns = toIndexedGPUStream p (readTups s) ns
 
 -- read (Vec# ?, Vec# ?) from a string containing numbers
 readTups s = zipHalves vecs
