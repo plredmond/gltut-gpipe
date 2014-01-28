@@ -12,9 +12,10 @@ import Data.Vec as V
 vpp :: Float -> (Vec4 Float, FragmentStream (Color RGBFormat (Fragment Float)))
 vpp sec = (offset, frags)
     where
-        offset = (  0.5  - Easing.computeCycle 2 sec):.       -- [-0.5,  0.5]
-                 (  0.5  - Easing.computeCycle 4 sec):.       -- [-0.5,  0.5]
-                 ((-0.5) - Easing.computeCycle 8 sec):.1:.()  -- [-0.5, -1.5]
+        offset = (Easing.easeThereAndBack sec 2 `Easing.onRange` (-0.5,  0.5)):.
+                 (Easing.easeThereAndBack sec 4 `Easing.onRange` (-0.5,  0.5)):.
+                 (Easing.easeThereAndBack sec 8 `Easing.onRange` (-0.5, -1.5)):.
+                 1:.()
         offset_unif = toGPU offset
         frags = fmap (\() -> RGB $ vec 1)
               $ rasterizeFront

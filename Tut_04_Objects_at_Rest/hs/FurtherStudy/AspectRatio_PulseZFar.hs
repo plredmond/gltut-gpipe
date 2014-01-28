@@ -1,9 +1,8 @@
 import qualified Graphics.GLTut.Framework as Framework
 import qualified Graphics.GLTut.Perspective as Perspective
-import qualified Graphics.GLTut.VecFile as VecFile
+import qualified Graphics.GLTut.Tut04.Models as Models
 import qualified Graphics.GLTut.Easing as Easing
 import qualified Graphics.UI.GLUT as GLUT
-import qualified Paths_gltut_tut04 as Paths
 
 import Graphics.GPipe
 import Data.Vec as V
@@ -11,22 +10,29 @@ import Prelude as P
 
 main :: IO ()
 main = do
-    dat <- Paths.getDataFileName "model.vec4" >>= readFile
-    Framework.main keyboard (displayIO $ VecFile.readStream dat) initialize
+    cube <- Models.load_cube
+    -- enter common mainloop
+    Framework.main keyboard
+                   (displayIO cube)
+                   initialize
 
+-- Set up the window.
 initialize :: GLUT.Window -> IO ()
 initialize w = GLUT.idleCallback GLUT.$= (Just . GLUT.postRedisplay . Just $ w)
 
+-- Handle keyboard events.
 keyboard :: Char -> GLUT.Position -> IO ()
 keyboard '\ESC' _ = do GLUT.leaveMainLoop
 keyboard _      _ = do return ()
 
-displayIO :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> IO (FrameBuffer RGBFormat () ())
+-- Perform IO on behalf of display. Call display to produce the framebuffer.
+displayIO :: Models.PrimStream -> Vec2 Int -> IO (FrameBuffer RGBFormat () ())
 displayIO stream size = do
     milliseconds <- GLUT.get GLUT.elapsedTime
     return $ display stream size (fromIntegral milliseconds / 1000)
 
-display :: PrimitiveStream Triangle (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> Vec2 Int -> Float -> FrameBuffer RGBFormat () ()
+-- Combine scene elements on a framebuffer.
+display :: Models.PrimStream -> Vec2 Int -> Float -> FrameBuffer RGBFormat () ()
 display stream size sec = draw fragments cleared
     where
         draw = paintColor NoBlending (RGB $ vec True)
@@ -38,7 +44,8 @@ display stream size sec = draw fragments cleared
         -- constant uniforms, calculated once
         offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Z of the vertex data by -2 here instead of duplicating the data inside the code.
         -- variable uniforms, calculated every frame
-        matrix = toGPU $ Perspective.m_ar 1 0.5 (3 - Easing.computeCycle 5 sec) (V.map fromIntegral size)
+        matrix = toGPU $ Perspective.m_ar 1 0.5 zFar (V.map fromIntegral size)
+        zFar = Easing.easeThereAndBack sec 5 `Easing.onRange` (3, 2)
 
 -- Offset the position. Perform projection using the provided matrix.
 vs  :: Vec4 (Vertex Float)
@@ -50,6 +57,7 @@ vs offset mat (pos, col) = (clipPos, col)
         cameraPos = pos + offset
         clipPos = multmv mat cameraPos
 
+-- Use the provided color.
 fs :: Vec4 (Fragment Float) -> Color RGBFormat (Fragment Float)
 fs = RGB . V.take n3
 
