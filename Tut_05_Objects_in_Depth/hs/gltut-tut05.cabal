@@ -1,5 +1,5 @@
 name:                gltut-tut05
-version:             0.1.0.0
+version:             0.1.0.1
 build-type:          Simple
 cabal-version:       >= 1.10
 data-files:          horizwedge.vec4, vertiwedge.vec4
@@ -7,14 +7,14 @@ data-files:          horizwedge.vec4, vertiwedge.vec4
 library
   exposed-modules:     Graphics.GLTut.Tut05.Models
   other-modules:       Paths_gltut_tut05
-  build-depends:       base>=4.6, GPipe>=1.4, Vec>=1.0, gltut-framework>=0.1
+  build-depends:       base>=4.6, GPipe>=1.4.3, Vec>=1.0.1, gltut-framework>=0.1.0.1
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
 
 executable             OverlapNoDepth
   main-is:             OverlapNoDepth.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut-framework>=0.1, gltut-tut05>=0.1
+  build-depends:       base>=4.6, GLUT>=2.3, GPipe>=1.4.3, Vec>=1.0.1, gltut-framework>=0.1.0.1, gltut-tut05>=0.1.0.1
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
 
@@ -23,21 +23,21 @@ executable             OverlapNoDepth
 executable             DepthBuffer
   main-is:             DepthBuffer.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut-framework>=0.1, gltut-tut05>=0.1
+  build-depends:       base>=4.6, GLUT>=2.3, GPipe>=1.4.3, Vec>=1.0.1, gltut-framework>=0.1.0.1, gltut-tut05>=0.1.0.1
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
 
 executable             VertexClipping
   main-is:             VertexClipping.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut-framework>=0.1, gltut-tut05>=0.1
+  build-depends:       base>=4.6, GLUT>=2.3, GPipe>=1.4.3, Vec>=1.0.1, gltut-framework>=0.1.0.1, gltut-tut05>=0.1.0.1
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
 
 executable             DepthClamping
   main-is:             DepthClamping.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.4, GPipe>=1.4, Vec>=1.0, gltut-framework>=0.1, gltut-tut05>=0.1
+  build-depends:       base>=4.6, GLUT>=2.3, GPipe>=1.4.3, Vec>=1.0.1, gltut-framework>=0.1.0.1, gltut-tut05>=0.1.0.1
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
 
