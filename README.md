@@ -10,7 +10,40 @@ It is recommended to use a diff tool to compare each code example with the next.
 
 ### Installation
 
-The tutorials are set up to build with `cabal`. A few of the tutorials need to read data files at runtime, which requires that you `cabal install` install them. I recommend that you install them to a shared sandbox.
+The tutorials are set up to build with `cabal`. A few of the tutorials need to read data files at runtime, which requires that you `cabal install` install them. I recommend at least `haskell-platform 2013.2.0.0` and that you install into a shared sandbox.
+
+```bash
+# 1) get the code
+git clone [..clone-url..]
+REPO_DIR=[..repo-dir..]
+
+# 2) make a place for the cabal sandbox
+mkdir $REPO_DIR/sandbox
+
+# 3) install tutorial dependencies into the sandbox (gpipe & deps, gltut-framework)
+cd $REPO_DIR/framework/hs
+cabal sandbox init --sandbox $REPO_DIR/sandbox # join the sandbox
+cabal install --dry-run -v # review plan
+cabal install
+
+# 4) build and/or install a tutorial
+cd $REPO_DIR/Tut_01_Hello_Triangle/hs
+cabal sandbox init --sandbox $REPO_DIR/sandbox # join the sandbox
+cabal build
+./dist/build/tut1/tut1 # eyecandy
+```
+
+There's an open pull request right now, so there's an extra installation step between 2 and 3.
+
+```bash
+# 2.5) install gpipe 1.4.3 into the sandbox
+cd $REPO_DIR
+git clone https://github.com/plredmond/GPipe.git
+cd GPipe
+cabal sandbox init --sandbox $REPO_DIR/sandbox # join the sandbox
+cabal install --dry-run -v # review plan
+cabal install
+```
 
 ### Completion
 
