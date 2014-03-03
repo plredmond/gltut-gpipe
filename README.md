@@ -33,13 +33,14 @@ cabal build
 ./dist/build/tut1/tut1 # eyecandy
 ```
 
-There's an open pull request right now, so there's an extra installation step between 2 and 3.
+There have been some changes to GPipe that aren't on Hackage yet, so there's an extra installation step between 2 and 3.
 
 ```bash
 # 2.5) install gpipe 1.4.3 into the sandbox
 cd $REPO_DIR
-git clone https://github.com/plredmond/GPipe.git
+git clone https://github.com/tobbebex/GPipe.git
 cd GPipe
+git checkout 673aad415e3e3fbf228a302ca14b5f0614d90d6e # GPipe 1.4.3
 cabal sandbox init --sandbox $REPO_DIR/sandbox # join the sandbox
 cabal install --dry-run -v # review plan
 cabal install
