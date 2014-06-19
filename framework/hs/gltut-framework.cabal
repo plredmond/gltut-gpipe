@@ -7,16 +7,22 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Graphics.GLTut.Framework,
-                       Graphics.GLTut.VecFile,
-                       Graphics.GLTut.Easing,
+  exposed-modules:     Graphics.GLTut.Easing,
+                       Graphics.GLTut.Framework,
+                       Graphics.GLTut.MatrixStack,
+                       Graphics.GLTut.Mesh,
                        Graphics.GLTut.Perspective,
                        Graphics.GLTut.RenderState,
-                       Graphics.GLTut.MatrixStack,
                        Graphics.GLTut.Skeleton,
                        Graphics.GLTut.Tri,
-                       Graphics.GLTut.Mesh
-  other-modules:       Graphics.GLTut.Mesh.Primitive
+                       Graphics.GLTut.VecFile
+  -- modules not exposed but used by exposed-modules must be in other-modules
+  -- this manifests as linker errors in packages which depend on this one
+  other-modules:       Graphics.GLTut.Mesh.Attribute,
+                       Graphics.GLTut.Mesh.PrimToGPU,
+                       Graphics.GLTut.Mesh.Primitive,
+                       Graphics.GLTut.Mesh.Util,
+                       Graphics.GLTut.Mesh.XML
   other-extensions:    StandaloneDeriving, FlexibleContexts
   build-depends:       GPipe                >=1.4.3,
                        GLUT                 >=2.3.0,
