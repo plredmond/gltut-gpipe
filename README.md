@@ -22,7 +22,7 @@ cabal install cabal-install-1.18.0.4 # b/c the 1.2x.x.x versions seem borked
 # set your $PATH properly to use ~/.cabal/bin
 ```
 
-#### 2. Build (copypasta to your shell)
+#### 2. Build
 
 Read `build.sh` or do:
 
