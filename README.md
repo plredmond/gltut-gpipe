@@ -10,40 +10,52 @@ It is recommended to use a diff tool to compare each code example with the next.
 
 ### Installation
 
-The tutorials are set up to build with `cabal`. A few of the tutorials need to read data files at runtime, which requires that you `cabal install` install them. I recommend at least `haskell-platform 2013.2.0.0` and that you install into a shared sandbox.
+The tutorials are set up to build with `cabal`. A few of the tutorials need to read data files at runtime, which requires that you `cabal install` install them.
 
-```bash
-# 1) get the code
-git clone [..clone-url..]
-REPO_DIR=[..repo-dir..]
+#### 1. Prep your haskell environment
 
-# 2) make a place for the cabal sandbox
-mkdir $REPO_DIR/sandbox
+```sh
+brew install haskell-platform # stable 2013.2.0.0
 
-# 3) install tutorial dependencies into the sandbox (gpipe & deps, gltut-framework)
-cd $REPO_DIR/framework/hs
-cabal sandbox init --sandbox $REPO_DIR/sandbox # join the sandbox
-cabal install --dry-run -v # review plan
-cabal install
+cabal install cabal-install-1.18.0.4 # b/c the 1.2x.x.x versions seem borked
 
-# 4) build and/or install a tutorial
-cd $REPO_DIR/Tut_01_Hello_Triangle/hs
-cabal sandbox init --sandbox $REPO_DIR/sandbox # join the sandbox
-cabal build
-./dist/build/tut1/tut1 # eyecandy
+# set your $PATH properly to use ~/.cabal/bin
 ```
 
-There have been some changes to GPipe that aren't on Hackage yet, so there's an extra installation step between 2 and 3.
+#### 2. Build (copypasta to your shell)
 
-```bash
-# 2.5) install gpipe 1.4.3 into the sandbox
-cd $REPO_DIR
+```sh
+mkdir gltut
+cd gltut
+
 git clone https://github.com/tobbebex/GPipe.git
-cd GPipe
-git checkout 673aad415e3e3fbf228a302ca14b5f0614d90d6e # GPipe 1.4.3
-cabal sandbox init --sandbox $REPO_DIR/sandbox # join the sandbox
-cabal install --dry-run -v # review plan
-cabal install
+pushd GPipe
+  git checkout 673aad415e3e3fbf228a302ca14b5f0614d90d6e # GPipe 1.4.3
+  cabal sandbox init
+  cabal install
+popd
+
+git clone https://github.com/plredmond/gltut_haskell-gpipe.git
+pushd gltut_haskell-gpipe
+  pushd framework/hs
+    cabal sandbox init
+    cabal sandbox add-source ../../../GPipe
+    cabal install
+  popd
+  # install individual tutorials like the following block
+  pushd Tut_01_Hello_Triangle/hs # <- just change this line as appropriate
+    cabal sandbox init
+    cabal sandbox add-source ../../../GPipe
+    cabal sandbox add-source ../../framework/hs
+    cabal install
+  popd
+popd
+```
+
+Please note that this approach to building compiles each package to its own local sandbox so there's no single shared `/bin` directory. You can run tutorials from the `gltut_haskell-gpipe` directory with something like:
+
+```sh
+$ Tut_01_Hello_Triangle/hs/dist/dist-sandbox-*/build/tut1/tut1
 ```
 
 ### Completion
