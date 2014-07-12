@@ -28,7 +28,7 @@ Read `build.sh` or do:
 
 ```sh
 wget https://raw.githubusercontent.com/plredmond/gltut_haskell-gpipe/master/build.sh
-sh build.sh
+sh -x build.sh
 ```
 
 Please note that this approach to building compiles each package to its own local sandbox so there's no single shared `/bin` directory. You can run demos from the `gltut_haskell-gpipe` directory with something like:
