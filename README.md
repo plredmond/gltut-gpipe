@@ -24,39 +24,20 @@ cabal install cabal-install-1.18.0.4 # b/c the 1.2x.x.x versions seem borked
 
 #### 2. Build (copypasta to your shell)
 
+Read `build.sh` or do:
+
 ```sh
-mkdir gltut
-cd gltut
-
-git clone https://github.com/tobbebex/GPipe.git
-pushd GPipe
-  git checkout 673aad415e3e3fbf228a302ca14b5f0614d90d6e # GPipe 1.4.3
-  cabal sandbox init
-  cabal install
-popd
-
-git clone https://github.com/plredmond/gltut_haskell-gpipe.git
-pushd gltut_haskell-gpipe
-  pushd framework/hs
-    cabal sandbox init
-    cabal sandbox add-source ../../../GPipe
-    cabal install
-  popd
-  # install individual tutorials like the following block
-  pushd Tut_01_Hello_Triangle/hs # <- just change this line as appropriate
-    cabal sandbox init
-    cabal sandbox add-source ../../../GPipe
-    cabal sandbox add-source ../../framework/hs
-    cabal install
-  popd
-popd
+wget https://raw.githubusercontent.com/plredmond/gltut_haskell-gpipe/master/build.sh
+sh build.sh
 ```
 
-Please note that this approach to building compiles each package to its own local sandbox so there's no single shared `/bin` directory. You can run tutorials from the `gltut_haskell-gpipe` directory with something like:
+Please note that this approach to building compiles each package to its own local sandbox so there's no single shared `/bin` directory. You can run demos from the `gltut_haskell-gpipe` directory with something like:
 
 ```sh
 $ Tut_01_Hello_Triangle/hs/dist/dist-sandbox-*/build/tut1/tut1
 ```
+
+There are multiple demos in most of the tutorials.
 
 ### Completion
 
