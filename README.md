@@ -22,7 +22,7 @@ cabal install cabal-install-1.18.0.4 # b/c the 1.2x.x.x versions seem borked
 # set your $PATH properly to use ~/.cabal/bin
 ```
 
-#### 2. Build
+#### 2. Build all the tutorials
 
 Read `build.sh` or do:
 
@@ -31,15 +31,15 @@ wget https://raw.githubusercontent.com/plredmond/gltut_haskell-gpipe/master/buil
 sh -x build.sh
 ```
 
-Please note that this approach to building compiles each package to its own local sandbox so there's no single shared `/bin` directory. You can run demos from the `gltut_haskell-gpipe` directory with something like:
+Run executables like:
 
 ```sh
-$ Tut_01_Hello_Triangle/hs/dist/dist-sandbox-*/build/tut1/tut1
+$ gltut/pkg/bin/tut1
 ```
 
 There are multiple demos in most of the tutorials.
 
-### Completion
+### Status
 
 * Tutorials 1-6 are complete and resemble Jason's examples.
 * Tutorials 7-17 are forthcoming.
