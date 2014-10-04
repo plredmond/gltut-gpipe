@@ -6,27 +6,27 @@ cabal-version:       >= 1.10
 executable             FragPosition
   main-is:             FragPosition.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.3, GPipe>=1.4.3, Vec>=1.0.1, gltut-framework>=0.1.0.1
+  build-depends:       base==4.6.0.1, GLUT==2.4.0.0, GPipe==1.4.3, Vec==1.0.1, gltut-framework==0.1.0.1
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
 
 executable             VertexColors
   main-is:             VertexColors.hs
   hs-source-dirs:      Tutorials/
-  build-depends:       base>=4.6, GLUT>=2.3, GPipe>=1.4.3, Vec>=1.0.1, gltut-framework>=0.1.0.1
+  build-depends:       base==4.6.0.1, GLUT==2.4.0.0, GPipe==1.4.3, Vec==1.0.1, gltut-framework==0.1.0.1
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
 
 executable             FragPosition_SettableViewport
   main-is:             FragPosition_SettableViewport.hs
   hs-source-dirs:      FurtherStudy/
-  build-depends:       base>=4.6, GLUT>=2.3, GPipe>=1.4.3, Vec>=1.0.1, gltut-framework>=0.1.0.1
+  build-depends:       base==4.6.0.1, GLUT==2.4.0.0, GPipe==1.4.3, Vec==1.0.1, gltut-framework==0.1.0.1
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
 
 executable             FragPosition_VertexColors
   main-is:             FragPosition_VertexColors.hs
   hs-source-dirs:      FurtherStudy/
-  build-depends:       base>=4.6, GLUT>=2.3, GPipe>=1.4.3, Vec>=1.0.1, gltut-framework>=0.1.0.1
+  build-depends:       base==4.6.0.1, GLUT==2.4.0.0, GPipe==1.4.3, Vec==1.0.1, gltut-framework==0.1.0.1
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
