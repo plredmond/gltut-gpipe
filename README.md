@@ -14,10 +14,10 @@ The tutorials are set up to build with `cabal`. A few of the tutorials need to r
 
 #### 1. Prep your haskell environment
 
-```sh
-brew install haskell-platform # stable 2013.2.0.0
+Install the haskell-platform `2013.2.0.0` from <https://www.haskell.org/platform/prior.html>.
 
-cabal install cabal-install-1.18.0.4 # b/c the 1.2x.x.x versions seem borked
+```sh
+cabal install cabal-install-1.18.0.4 # because the 1.2x.x.x versions don't work
 
 # set your $PATH properly to use ~/.cabal/bin
 ```
