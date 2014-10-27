@@ -19,7 +19,8 @@ Install the haskell-platform `2013.2.0.0` from <https://www.haskell.org/platform
 ```sh
 cabal install cabal-install-1.18.0.4 # because the 1.2x.x.x versions don't work
 
-# set your $PATH to use ~/.cabal/bin or ~/Library/Haskell/bin according to where cabal 1.16 installs cabal 1.18
+# set your $PATH to use ~/.cabal/bin or ~/Library/Haskell/bin
+# according to where cabal 1.16 installed cabal 1.18
 ```
 
 If you're using Mac OSX 10.9 or see anything clang-related when you do `gcc --version` then you'll need to tell GHC to use the real gcc or OpenGLRaw won't install. It's a one-line change in a configuration file detailed [in this issue comment](https://github.com/haskell-opengl/OpenGLRaw/issues/18#issuecomment-41755745).
