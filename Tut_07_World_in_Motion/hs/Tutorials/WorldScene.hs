@@ -1,18 +1,20 @@
 -- qualified
 
 import qualified Control.Monad as Monad
+import qualified Data.Traversable as T
 --import qualified Data.Monoid as Monoid
 import qualified Text.Printf as Pf
 import qualified System.Environment as Env
 import qualified System.FilePath as Path
 import qualified Graphics.UI.GLUT as GLUT
 import qualified Graphics.GLTut.Framework as Framework
+import qualified Graphics.GLTut.MatrixStack as MS
 import qualified Paths_gltut_tut07 as Paths
 
 -- mixed
 
---import qualified Data.HashMap.Lazy as HashMap
---import Data.HashMap.Lazy (HashMap)
+import qualified Data.Map.Strict as Map
+import Data.Map.Strict (Map)
 
 import qualified Data.IORef as R
 import Data.IORef (IORef)
@@ -32,7 +34,7 @@ import Graphics.GLTut.Tut07.SphereCoord (SphereCoord)
 -- unqualified
 
 import Prelude as P
-import Data.Vec as V
+import Data.Vec as V hiding (Map)
 import Graphics.GPipe
 
 
@@ -62,8 +64,8 @@ data State = State
     , sphereCamRelPos :: SphereCoord Float
     } deriving(Show)
         
-initial_state :: State
-initial_state = State
+initialState :: State
+initialState = State
     { drawLookatPoint = False
     , camTarget       = 0:.0.4:.0:.()
     , sphereCamRelPos = sphereCoord 150 (Angle.fromDeg 67.5) (Angle.fromDeg $ -46)
@@ -71,53 +73,111 @@ initial_state = State
 
 -- Static Information --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
-type StaticState = ([Mesh], [Tree Float])
+meshFiles :: Map String String
+meshFiles = Map.fromList [ ("cone", "UnitConeTint.xml")
+                         , ("cylinder", "UnitCylinderTint.xml")
+                         , ("cubeTint", "UnitCubeTint.xml")
+                         , ("cubeColor", "UnitCubeColor.xml")
+                         , ("plane", "UnitPlane.xml")
+                         ]
 
-mesh_files :: [String]
-mesh_files = [ "UnitConeTint.xml"
-             , "UnitCylinderTint.xml"
-             , "UnitCubeTint.xml"
-             , "UnitCubeColor.xml"
-             , "UnitPlane.xml"
-             ]
+data Tree a = Tree { xPos :: a
+                   , zPos :: a
+                   , trunkHeight :: a
+                   , coneHeight :: a
+                   } deriving (Show)
 
-data Tree a = Tree
-    { xPos :: a
-    , yPos :: a
-    , trunkHeight :: a
-    , coneHeight :: a
-    } deriving (Show)
+data Program a = UniformColor {baseColor :: Vec4 a}
+               | UniformColorTint {baseColor :: Vec4 a}
+               deriving (Show)
 
----
+data Component a = Component { mesh :: String
+                             , meshVAO :: Maybe String
+                             , transformations :: [MS.Transformation a]
+                             , program :: Program a
+                             }
+                             deriving (Show)
+
+template :: Component Float
+template = Component { mesh = undefined
+                     , meshVAO = Nothing
+                     , transformations = []
+                     , program = UniformColor {baseColor = 1:.0:.0.4:.1:.()}
+                     }
+
+static_scene :: [Component Float]
+static_scene =
+    [ template { mesh = "plane"
+               , transformations = [MS.ScaleAll $ 100:.1:.100:.()]
+               , program = UniformColor {baseColor = 0.302:.0.416:.0.0589:.1.0:.()}
+               }
+    -- Continue with line 507 of the cpp, "Draw the Building"
+    ]
+
+treeComponents :: (Floating a) => Tree a -> [Component a]
+treeComponents (Tree x z trunk cone) =
+    [ template { mesh = "cylinder"
+               , transformations = both
+               , program = UniformColorTint {baseColor = 0.694:.0.4:.0.106:.1.0:.()}
+               }
+    , template { mesh = "cone"
+               , transformations = both ++
+                                   [ MS.Translate MS.Y trunk
+                                   , MS.ScaleAll $ 3:.cone:.3:.()
+                                   ]
+               , program = UniformColorTint {baseColor = 0:.1:.0:.1:.()}
+               }
+    ]
+    where
+        both = [ MS.TranslateAll $ x:.0:.z:.()
+               , MS.Scale MS.Y trunk
+               , MS.Translate MS.Y 0.5
+               ]
+
+type StaticState = [Component Float]
+
+-- Main --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+usage :: IO [String]
+usage = do
+    argv <- Env.getArgs
+    Monad.unless (P.length argv == 1) $ do
+        n <- Env.getProgName
+        Pf.printf "usage: ./%s [path to \"Tut 07 World in Motion/data\"]\n" n
+        fail "argument error"
+    return argv
+
+loadTrees :: String -> IO [Tree Float]
+loadTrees path = do
+    s <- readFile path
+    return . P.map (\[a,b,c,d] -> Tree a b c d)
+           . P.map (P.map (read :: String -> Float))
+           . P.filter (not . null)
+           . P.map words
+           . lines
+           $ s
+
+loadMeshes :: String -> IO (Map String Mesh)
+loadMeshes path = T.forM meshFiles $ \xml -> do
+    s <- readFile $ Path.joinPath [path, xml]
+    return $ either (\err -> error $ Pf.printf "%s: %s" xml err) id (Mesh.readMesh s)
 
 main :: IO ()
 main = do
-    -- load tree data
-    trees <- do
-        s <- Paths.getDataFileName "forest.txt" >>= readFile
-        return . P.map (\[a,b,c,d] -> Tree a b c d)
-               . P.filter (not . null)
-               . P.map (P.map (read :: String -> Float))
-               . P.map words
-               . lines $ s
-    -- load meshes
-    meshes <- do
-        argv <- Env.getArgs
-        Monad.unless (P.length argv == 1) $ do
-            n <- Env.getProgName
-            Pf.printf "usage: ./%s [path to Tut_07_World_in_Motion]\n" n
-            fail "argument error"
-        Monad.forM mesh_files $ \xml -> do
-            s <- readFile $ Path.joinPath [P.head argv, "data", xml]
-            return $ either (\err -> error $ Pf.printf "%s: %s" xml err) id (Mesh.readMesh s)
-    print (P.length meshes)
-    print (P.head meshes)
-    --let _ = prim -- try to def the first mesh as a gpu type after primtogpu or smth
+    [meshPath] <- usage
+    trees <- Paths.getDataFileName "forest.vec4" >>= loadTrees 
+    meshm <- loadMeshes meshPath
+    -- build the rest of the scene
+    -- convert meshes to streams and put them in the scene
+    print (Map.size meshm)
+    print (Map.lookup "plane" meshm)
+    -- let _ = prim -- try to def the first mesh as a gpu type after primtogpu or smth
     -- build the scene out of meshes loaded on the gpu once?
+
     -- enter common mainloop
-    ref <- R.newIORef initial_state
+    ref <- R.newIORef initialState
     Framework.main (keyboard ref)
-                   (displayIO ref (meshes, trees))
+                   (displayIO ref (undefined, trees))
                    initialize
 
 -- Set up the window.
@@ -130,7 +190,7 @@ keyboard _ '\ESC' _ = GLUT.leaveMainLoop
 keyboard r 'a'    _ = R.modifyIORef r id >> blurt r
 keyboard _ _      _ = return ()
 
-displayIO :: IORef State -> StaticState -> Vec2 Int -> IO (FrameBuffer RGBFormat DepthFormat ())
+-- displayIO :: IORef State -> StaticState -> Vec2 Int -> IO (FrameBuffer RGBFormat DepthFormat ())
 displayIO ref sst size = do
     rst <- RenderState.new size
     gst <- R.readIORef ref
