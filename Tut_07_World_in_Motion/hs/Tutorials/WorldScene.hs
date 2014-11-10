@@ -1,8 +1,12 @@
+{-# LANGUAGE FlexibleContexts #-}
+--module Main where
+module Tutorials.WorldScene where
+
 -- qualified
 
 import qualified Control.Monad as Monad
 import qualified Data.Traversable as T
---import qualified Data.Monoid as Monoid
+import qualified Data.Monoid as Monoid
 import qualified Text.Printf as Pf
 import qualified System.Environment as Env
 import qualified System.FilePath as Path
@@ -13,8 +17,14 @@ import qualified Paths_gltut_tut07 as Paths
 
 -- mixed
 
+import qualified Graphics.GLTut.Tri as Tri
+import Graphics.GLTut.Tri (Tri)
+
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
+
+import qualified Data.IntMap as IntMap
+import Data.IntMap (IntMap)
 
 import qualified Data.IORef as R
 import Data.IORef (IORef)
@@ -45,7 +55,7 @@ import Graphics.GPipe
 -- [-90,90] with -90 being equal to the zenith direction.
 
 -- Swap zenith and 90 degree meridian.
-toCartesian :: Floating a => SphereCoord a -> Vec3 a
+toCartesian :: (Floating a) => SphereCoord a -> Vec3 a
 toCartesian = (\(x, y, z) -> x:.z:.y:.()) . SphereCoord.toCartesian
 
 -- Shift inclination from [-90, 90] to [0, 180].
@@ -55,6 +65,8 @@ sphereCoord r aA_ iA_ = SphereCoord.sphereCoord r aA_ iA
         a = Angle.toRad aA_
         i = Angle.toRad iA_
         iA = Angle.fromRad $ i + pi/2
+
+deg2rad = Angle.toRad . Angle.fromDeg
 
 -- Dynamic Information --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
@@ -88,6 +100,7 @@ data Tree a = Tree { xPos :: a
                    } deriving (Show)
 
 data Program a = UniformColor {baseColor :: Vec4 a}
+               | ObjectColor
                | UniformColorTint {baseColor :: Vec4 a}
                deriving (Show)
 
@@ -134,7 +147,16 @@ treeComponents (Tree x z trunk cone) =
                , MS.Translate MS.Y 0.5
                ]
 
-type StaticState = [Component Float]
+
+data Mo -- Model Space Type
+data Wo -- World Space Type
+data Ca -- Camera Space Type
+data Cl -- Clip Space Type
+data Mat a b = Mat (Mat44 (Vertex Float))
+type MatTup = (Mat Ca Cl, Mat Wo Ca, Mat Mo Wo)
+
+type AttributeMap = IntMap [Vertex Float]
+type StaticState = ([Mesh.Stream], Mat Mo Wo, Program Float)
 
 -- Main --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
@@ -162,22 +184,30 @@ loadMeshes path = T.forM meshFiles $ \xml -> do
     s <- readFile $ Path.joinPath [path, xml]
     return $ either (\err -> error $ Pf.printf "%s: %s" xml err) id (Mesh.readMesh s)
 
+-- Put a component on the GPU with its model2world matrix.
+compToGPU :: Map String Mesh -> Component Float -> StaticState
+compToGPU meshm (Component {mesh=mn, meshVAO=vao, transformations=t, program=p}) =
+    ( either error id $ Mesh.meshToGPU (meshm Map.! mn) vao
+    , Mat . toGPU . MS.peek . MS.push MS.new $ t
+    , p
+    )
+
 main :: IO ()
 main = do
     [meshPath] <- usage
-    trees <- Paths.getDataFileName "forest.vec4" >>= loadTrees 
     meshm <- loadMeshes meshPath
-    -- build the rest of the scene
+    trees <- Paths.getDataFileName "forest.vec4" >>= loadTrees 
     -- convert meshes to streams and put them in the scene
     print (Map.size meshm)
     print (Map.lookup "plane" meshm)
-    -- let _ = prim -- try to def the first mesh as a gpu type after primtogpu or smth
-    -- build the scene out of meshes loaded on the gpu once?
-
+    -- build the rest of the components, put everything on the gpu
+    let scene = fmap (compToGPU meshm)
+                     $ static_scene
+                    ++ concatMap treeComponents trees
     -- enter common mainloop
     ref <- R.newIORef initialState
     Framework.main (keyboard ref)
-                   (displayIO ref (undefined, trees))
+                   (displayIO ref scene)
                    initialize
 
 -- Set up the window.
@@ -190,44 +220,34 @@ keyboard _ '\ESC' _ = GLUT.leaveMainLoop
 keyboard r 'a'    _ = R.modifyIORef r id >> blurt r
 keyboard _ _      _ = return ()
 
--- displayIO :: IORef State -> StaticState -> Vec2 Int -> IO (FrameBuffer RGBFormat DepthFormat ())
+displayIO :: IORef State -> [StaticState] -> Vec2 Int -> IO (FrameBuffer RGBFormat DepthFormat ())
 displayIO ref sst size = do
     rst <- RenderState.new size
     gst <- R.readIORef ref
---  return $ display rst gst sst
-    return $ newFrameBufferColorDepth (RGB $ vec 0) 1
+    return $ display rst gst sst
+--    return $ newFrameBufferColorDepth (RGB $ vec 0) 1
 
-
---display :: RenderState Float -> State -> StaticState -> FrameBuffer RGBFormat DepthFormat ()
---display rst gst sst = draw fragments cleared
---    where
---        draw = paintColorRastDepth Lequal True NoBlending (RGB $ vec True)
---        cleared = newFrameBufferColorDepth (RGB $ vec 0) 1
---        fragments = mconcat
---                  . P.map (mkFragments world2clip)
---                  . ...
---                  $ let (meshes, trees) = sst
---                    in makeScene meshes, trees
---        tgt = 
---        cam = 
---
---        camTarget       = fromJust $ fromDynamic (gst ! "camTarget")       :: Vec3 Float
---        sphereCamRelPos = fromJust $ fromDynamic (gst ! "sphereCamRelPos") :: SphereCoords
---
---        camPos = let
---
---        world2cam = let up = 0:.1:.0:.()
---                        tgt = 0:.0.05:.0:.()
---                        in multmm (transpose $ rotationLookAt up cam tgt) (translation $ -cam)
---                        -- multmm (translation $ -cam) (rotationLookAt up cam tgt)
---
---        cam2clip = let zNear = 1
---                       zFar = 1000
---                       fovDeg = 45
---                       in perspective zNear zFar (deg2rad fovDeg) (rsAspectRatio rst)
---        world2clip = toGPU $ multmm cam2clip world2cam
-
--- -- r sin 
+display :: RenderState Float -> State -> [StaticState] -> FrameBuffer RGBFormat DepthFormat ()
+display rst gst sst = draw fragments cleared
+    where
+        draw = paintColorRastDepth Lequal True NoBlending (RGB $ vec True)
+        cleared = newFrameBufferColorDepth (RGB $ vec 0) 1
+        fragments = Monoid.mconcat
+                  . P.map (rastComp (Mat . toGPU $ cam2clip)
+                                    (Mat . toGPU $ world2cam))
+                  $ sst
+--      camTarget       = fromJust $ fromDynamic (gst ! "camTarget")       :: Vec3 Float
+--      sphereCamRelPos = fromJust $ fromDynamic (gst ! "sphereCamRelPos") :: SphereCoords
+        cam = 1:.1:.1:.()
+        world2cam = let up = 0:.1:.0:.()
+                        tgt = 0:.0.05:.0:.()
+                        in multmm (transpose $ rotationLookAt up cam tgt) (translation $ -cam)
+                        -- multmm (translation $ -cam) (rotationLookAt up cam tgt)
+        cam2clip = let zNear = 1
+                       zFar = 1000
+                       fovDeg = 45
+                       in perspective zNear zFar (deg2rad fovDeg) (RenderState.getAspectRatio rst)
+        -- world2clip = toGPU $ multmm cam2clip world2cam
 -- 
 --resolveCamPosition :: Vec3 Float -> SphereCoords -> Vec3 Float
 --resolveCamPosition tgt relpos = ...
@@ -236,26 +256,51 @@ displayIO ref sst size = do
 --    t = deg2rad $ 90 + scdInclination sphereCamRelPos 
 --    toCam = (sin t * cos p):.(cos t):.(sin t * sin p):.()
 --    in (toCam * r) + camTarget
--- 
--- mkFragments :: Mat44 (Vertex Float) -> (Mat44 Float, PrimitiveStream Triangle (Vec3 (Vertex Float), Vec3 (Vertex Float))) -> FragmentStream (Color RGBFormat (Fragment Float))
--- mkFragments cam2clip (model2cam, mesh) = fmap fs
---                                        $ rasterizeBack
---                                        $ fmap (vs (toGPU model2cam, cam2clip))
---                                        $ fmap vs0 mesh
--- 
--- -- Make the stream use Vec4 for pos and col.
--- vs0 :: (Vec3 (Vertex Float), Vec3 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
--- vs0 (pos3, rgb) = (homPoint pos3, snoc rgb 1)
--- 
--- -- Offset the position. Perform projection using the provided matrix.
--- vs :: (Mat44 (Vertex Float), Mat44 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float)) -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
--- vs (modelToCameraMatrix, cameraToClipMatrix) (pos, col) = (clipPos, col)
---     where
---         camPos = multmv modelToCameraMatrix pos
---         clipPos = multmv cameraToClipMatrix camPos
--- 
--- fs :: Vec4 (Fragment Float) -> Color RGBFormat (Fragment Float)
--- fs col = RGB $ V.take n3 col
+
+-- Set up shader programs and apply them to each primitive mesh in the scene component.
+rastComp :: Mat Ca Cl -> Mat Wo Ca -> StaticState
+         -> FragmentStream (Color RGBFormat (Fragment Float))
+rastComp ca2cl wo2ca (prims, mo2wo, prog) = Monoid.mconcat
+                                         . fmap (rastPrim v f)
+                                         $ prims
+    where
+        (v, f) = case prog of 
+            UniformColor {baseColor = b}     -> (v_PosOnlyWorldTransform (ca2cl, wo2ca, mo2wo), f_ColorUniform)
+            ObjectColor                      -> (v_PosColorWorldTransform, f_ColorPassthrough)
+            UniformColorTint {baseColor = b} -> (v_PosColorWorldTransform, f_ColorMultUniform)
+
+-- Apply shaders to a mesh primitive and produce fragments.
+rastPrim :: (VertexOutput a, ColorFormat c)
+         => (AttributeMap -> (VertexPosition, a)) 
+         -> (FragmentInput a -> (Color c (Fragment Float)))
+         -> Mesh.Stream 
+         -> FragmentStream (Color c (Fragment Float))
+rastPrim v f prim = let vr = rasterizeFront . fmap v
+                    in fmap f . Tri.tri vr vr vr $ prim
+
+-- Shaders
+
+v_PosOnlyWorldTransform :: MatTup -> AttributeMap -> (VertexPosition, ())
+v_PosOnlyWorldTransform mats attrm = (v_PosWorldTransform mats pos, ())
+    where
+        pos = s_GetAttr (vec 0) 0 attrm
+
+v_PosColorWorldTransform = undefined
+
+f_ColorUniform = undefined
+
+f_ColorPassthrough = undefined
+
+f_ColorMultUniform = undefined
+
+-- Helper shader to project points.
+v_PosWorldTransform :: MatTup -> VertexPosition -> VertexPosition
+v_PosWorldTransform (Mat ca2cl, Mat wo2ca, Mat mo2wo) pos 
+    = P.foldr multmv pos [ca2cl, wo2ca, mo2wo]
+
+-- Helper shader to extract attribute vectors.
+s_GetAttr :: (VecList (Vertex Float) v) => v -> Int -> AttributeMap -> v
+s_GetAttr def idx attrm  = maybe def fromList (IntMap.lookup idx attrm)
 
 blurt :: IORef State -> IO ()
 blurt r = do

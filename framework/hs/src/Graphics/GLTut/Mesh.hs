@@ -1,5 +1,6 @@
 module Graphics.GLTut.Mesh
 ( Mesh()
+, Stream
 , readMesh
 , mkMesh
 , meshToGPU
@@ -36,6 +37,9 @@ import qualified Graphics.GLTut.Mesh.PrimToGPU as PTG
 type Attrm = IntMap PTG.Attr
 type VAOm = HashMap String [Int]
 data Mesh = Mesh Attrm VAOm [Primitive] deriving (Show, Eq)
+type Stream = Tri (PrimitiveStream Triangle (IntMap [Vertex Float]))
+                  (PrimitiveStream Line     (IntMap [Vertex Float]))
+                  (PrimitiveStream Point    (IntMap [Vertex Float]))
 
 readMesh :: String -> Either String Mesh
 readMesh s = do
@@ -79,9 +83,7 @@ allVAOm els = do
           $ printf "VAO names must be unique. These repeat: %s" (unwords repeats)
     return vm
 
-meshToGPU :: Mesh -> Maybe String -> Either String [Tri (PrimitiveStream Triangle (IntMap [Vertex Float]))
-                                                        (PrimitiveStream Line     (IntMap [Vertex Float]))
-                                                        (PrimitiveStream Point    (IntMap [Vertex Float]))]
+meshToGPU :: Mesh -> Maybe String -> Either String [Stream]
 meshToGPU (Mesh allattrm vaom prims) name = do
     -- select the attributes indicated by the vao
     fullattrm <- case name of Nothing -> return allattrm
