@@ -156,7 +156,7 @@ data Mat a b = Mat (Mat44 (Vertex Float))
 type MatTup = (Mat Ca Cl, Mat Wo Ca, Mat Mo Wo)
 
 type AttributeMap = IntMap [Vertex Float]
-type StaticState = ([Mesh.Stream], Mat Mo Wo, Program Float)
+type StaticState = ([Mesh.Stream], Mat Mo Wo, Program (Fragment Float))
 
 -- Main --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
@@ -189,7 +189,9 @@ compToGPU :: Map String Mesh -> Component Float -> StaticState
 compToGPU meshm (Component {mesh=mn, meshVAO=vao, transformations=t, program=p}) =
     ( either error id $ Mesh.meshToGPU (meshm Map.! mn) vao
     , Mat . toGPU . MS.peek . MS.push MS.new $ t
-    , p
+    , case p of UniformColor {baseColor = b}     -> UniformColor {baseColor = toGPU b}
+                ObjectColor                      -> ObjectColor
+                UniformColorTint {baseColor = b} -> UniformColorTint {baseColor = toGPU b}
     )
 
 main :: IO ()
@@ -220,18 +222,18 @@ keyboard _ '\ESC' _ = GLUT.leaveMainLoop
 keyboard r 'a'    _ = R.modifyIORef r id >> blurt r
 keyboard _ _      _ = return ()
 
-displayIO :: IORef State -> [StaticState] -> Vec2 Int -> IO (FrameBuffer RGBFormat DepthFormat ())
+displayIO :: IORef State -> [StaticState] -> Vec2 Int -> IO (FrameBuffer RGBAFormat DepthFormat ())
 displayIO ref sst size = do
     rst <- RenderState.new size
     gst <- R.readIORef ref
     return $ display rst gst sst
 --    return $ newFrameBufferColorDepth (RGB $ vec 0) 1
 
-display :: RenderState Float -> State -> [StaticState] -> FrameBuffer RGBFormat DepthFormat ()
+display :: RenderState Float -> State -> [StaticState] -> FrameBuffer RGBAFormat DepthFormat ()
 display rst gst sst = draw fragments cleared
     where
-        draw = paintColorRastDepth Lequal True NoBlending (RGB $ vec True)
-        cleared = newFrameBufferColorDepth (RGB $ vec 0) 1
+        draw = paintColorRastDepth Lequal True NoBlending (RGBA (vec True) True)
+        cleared = newFrameBufferColorDepth (RGBA (vec 0) 1) 1
         fragments = Monoid.mconcat
                   . P.map (rastComp (Mat . toGPU $ cam2clip)
                                     (Mat . toGPU $ world2cam))
@@ -259,15 +261,15 @@ display rst gst sst = draw fragments cleared
 
 -- Set up shader programs and apply them to each primitive mesh in the scene component.
 rastComp :: Mat Ca Cl -> Mat Wo Ca -> StaticState
-         -> FragmentStream (Color RGBFormat (Fragment Float))
+         -> FragmentStream (Color RGBAFormat (Fragment Float))
 rastComp ca2cl wo2ca (prims, mo2wo, prog) = Monoid.mconcat
                                          . fmap (rastPrim v f)
                                          $ prims
     where
         (v, f) = case prog of 
-            UniformColor {baseColor = b}     -> (v_PosOnlyWorldTransform (ca2cl, wo2ca, mo2wo), f_ColorUniform)
-            ObjectColor                      -> (v_PosColorWorldTransform, f_ColorPassthrough)
-            UniformColorTint {baseColor = b} -> (v_PosColorWorldTransform, f_ColorMultUniform)
+            UniformColor {baseColor = b}     -> undefined -- (vPosOnlyWorldTransform (ca2cl, wo2ca, mo2wo), fColorUniform b)
+            ObjectColor                      -> (vPosColorWorldTransform (ca2cl, wo2ca, mo2wo), fColorPassthrough)
+            UniformColorTint {baseColor = b} -> (vPosColorWorldTransform (ca2cl, wo2ca, mo2wo), fColorMultUniform b)
 
 -- Apply shaders to a mesh primitive and produce fragments.
 rastPrim :: (VertexOutput a, ColorFormat c)
@@ -280,27 +282,36 @@ rastPrim v f prim = let vr = rasterizeFront . fmap v
 
 -- Shaders
 
-v_PosOnlyWorldTransform :: MatTup -> AttributeMap -> (VertexPosition, ())
-v_PosOnlyWorldTransform mats attrm = (v_PosWorldTransform mats pos, ())
-    where
-        pos = s_GetAttr (vec 0) 0 attrm
+vPosOnlyWorldTransform :: MatTup -> AttributeMap -> (VertexPosition, ())
+vPosOnlyWorldTransform mats attrm = (vPosWorldTransform mats pos, ())
+   where
+       pos = sGetAttr (vec 0) 0 attrm
 
-v_PosColorWorldTransform = undefined
+vPosColorWorldTransform :: MatTup -> AttributeMap -> (VertexPosition, Vec4 (Vertex Float))
+vPosColorWorldTransform mats attrm = (vPosWorldTransform mats pos, color)
+   where
+       pos = sGetAttr (vec 0) 0 attrm
+       color = sGetAttr (vec 0) 1 attrm
 
-f_ColorUniform = undefined
+fColorUniform :: Vec4 a -> () -> Color RGBAFormat a
+fColorUniform (r:.g:.b:.a:.()) _ = RGBA (r:.g:.b:.()) a
 
-f_ColorPassthrough = undefined
+fColorPassthrough :: Vec4 a -> Color RGBAFormat a
+fColorPassthrough (r:.g:.b:.a:.()) = RGBA (r:.g:.b:.()) a
 
-f_ColorMultUniform = undefined
+fColorMultUniform :: (Num a) => Vec4 a -> Vec4 a -> Color RGBAFormat a
+fColorMultUniform baseColor interpColor = RGBA (r:.g:.b:.()) a
+   where
+       (r:.g:.b:.a:.()) = baseColor * interpColor
 
 -- Helper shader to project points.
-v_PosWorldTransform :: MatTup -> VertexPosition -> VertexPosition
-v_PosWorldTransform (Mat ca2cl, Mat wo2ca, Mat mo2wo) pos 
-    = P.foldr multmv pos [ca2cl, wo2ca, mo2wo]
+vPosWorldTransform :: MatTup -> VertexPosition -> VertexPosition
+vPosWorldTransform (Mat ca2cl, Mat wo2ca, Mat mo2wo) pos 
+   = P.foldr multmv pos [ca2cl, wo2ca, mo2wo]
 
 -- Helper shader to extract attribute vectors.
-s_GetAttr :: (VecList (Vertex Float) v) => v -> Int -> AttributeMap -> v
-s_GetAttr def idx attrm  = maybe def fromList (IntMap.lookup idx attrm)
+sGetAttr :: (VecList (Vertex Float) v) => v -> Int -> AttributeMap -> v
+sGetAttr def idx attrm  = maybe def fromList (IntMap.lookup idx attrm)
 
 blurt :: IORef State -> IO ()
 blurt r = do
