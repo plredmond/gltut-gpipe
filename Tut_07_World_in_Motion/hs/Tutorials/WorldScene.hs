@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
 --module Main where
 module Tutorials.WorldScene where
 
@@ -14,11 +13,9 @@ import qualified Graphics.UI.GLUT as GLUT
 import qualified Graphics.GLTut.Framework as Framework
 import qualified Graphics.GLTut.MatrixStack as MS
 import qualified Paths_gltut_tut07 as Paths
+import qualified Graphics.GLTut.Tri as Tri
 
 -- mixed
-
-import qualified Graphics.GLTut.Tri as Tri
-import Graphics.GLTut.Tri (Tri)
 
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
@@ -62,10 +59,10 @@ toCartesian = (\(x, y, z) -> x:.z:.y:.()) . SphereCoord.toCartesian
 sphereCoord :: (Real a, Floating a) => a -> Angle a -> Angle a -> SphereCoord a
 sphereCoord r aA_ iA_ = SphereCoord.sphereCoord r aA_ iA
     where
-        a = Angle.toRad aA_
         i = Angle.toRad iA_
         iA = Angle.fromRad $ i + pi/2
 
+deg2rad :: Float -> Float
 deg2rad = Angle.toRad . Angle.fromDeg
 
 -- Dynamic Information --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -263,35 +260,29 @@ display rst gst sst = draw fragments cleared
 rastComp :: Mat Ca Cl -> Mat Wo Ca -> StaticState
          -> FragmentStream (Color RGBAFormat (Fragment Float))
 rastComp ca2cl wo2ca (prims, mo2wo, prog) = Monoid.mconcat
-                                         . fmap (rastPrim v f)
-                                         $ prims
+                                          . fmap (Tri.tri pipe pipe pipe)
+                                          $ prims
     where
-        (v, f) = case prog of 
-            UniformColor {baseColor = b}     -> undefined -- (vPosOnlyWorldTransform (ca2cl, wo2ca, mo2wo), fColorUniform b)
-            ObjectColor                      -> (vPosColorWorldTransform (ca2cl, wo2ca, mo2wo), fColorPassthrough)
-            UniformColorTint {baseColor = b} -> (vPosColorWorldTransform (ca2cl, wo2ca, mo2wo), fColorMultUniform b)
+        pipe = progPipe (ca2cl, wo2ca, mo2wo) prog
 
--- Apply shaders to a mesh primitive and produce fragments.
-rastPrim :: (VertexOutput a, ColorFormat c)
-         => (AttributeMap -> (VertexPosition, a)) 
-         -> (FragmentInput a -> (Color c (Fragment Float)))
-         -> Mesh.Stream 
-         -> FragmentStream (Color c (Fragment Float))
-rastPrim v f prim = let vr = rasterizeFront . fmap v
-                    in fmap f . Tri.tri vr vr vr $ prim
+-- Produce a pipeline to apply shaders and rasterize.
+progPipe :: MatTup -> Program (Fragment Float) -> PrimitiveStream p AttributeMap -> FragmentStream (Color RGBAFormat (Fragment Float))
+progPipe mats (UniformColor {baseColor = b})     = fmap (fColorUniform b)     . rasterizeFront . fmap (vPosOnlyWorldTransform mats)
+progPipe mats  ObjectColor                       = fmap  fColorPassthrough    . rasterizeFront . fmap (vPosColorWorldTransform mats)
+progPipe mats (UniformColorTint {baseColor = b}) = fmap (fColorMultUniform b) . rasterizeFront . fmap (vPosColorWorldTransform mats)
 
 -- Shaders
 
 vPosOnlyWorldTransform :: MatTup -> AttributeMap -> (VertexPosition, ())
 vPosOnlyWorldTransform mats attrm = (vPosWorldTransform mats pos, ())
    where
-       pos = sGetAttr (vec 0) 0 attrm
+       pos = getVec (vec 0) 0 attrm
 
 vPosColorWorldTransform :: MatTup -> AttributeMap -> (VertexPosition, Vec4 (Vertex Float))
 vPosColorWorldTransform mats attrm = (vPosWorldTransform mats pos, color)
    where
-       pos = sGetAttr (vec 0) 0 attrm
-       color = sGetAttr (vec 0) 1 attrm
+       pos   = getVec (vec 0) 0 attrm
+       color = getVec (vec 0) 1 attrm
 
 fColorUniform :: Vec4 a -> () -> Color RGBAFormat a
 fColorUniform (r:.g:.b:.a:.()) _ = RGBA (r:.g:.b:.()) a
@@ -300,18 +291,22 @@ fColorPassthrough :: Vec4 a -> Color RGBAFormat a
 fColorPassthrough (r:.g:.b:.a:.()) = RGBA (r:.g:.b:.()) a
 
 fColorMultUniform :: (Num a) => Vec4 a -> Vec4 a -> Color RGBAFormat a
-fColorMultUniform baseColor interpColor = RGBA (r:.g:.b:.()) a
+fColorMultUniform baseCol interpCol = RGBA (r:.g:.b:.()) a
    where
-       (r:.g:.b:.a:.()) = baseColor * interpColor
+       (r:.g:.b:.a:.()) = baseCol * interpCol
 
 -- Helper shader to project points.
 vPosWorldTransform :: MatTup -> VertexPosition -> VertexPosition
 vPosWorldTransform (Mat ca2cl, Mat wo2ca, Mat mo2wo) pos 
    = P.foldr multmv pos [ca2cl, wo2ca, mo2wo]
 
--- Helper shader to extract attribute vectors.
-sGetAttr :: (VecList (Vertex Float) v) => v -> Int -> AttributeMap -> v
-sGetAttr def idx attrm  = maybe def fromList (IntMap.lookup idx attrm)
+-- Extract vecs from an intmap of lists, using the default where necessary.
+getVec :: (VecList a v, Fold v a) => v -> IntMap.Key -> IntMap [a] -> v
+getVec def idx attrm = maybe def (fromListOr def) (IntMap.lookup idx attrm)
+
+-- Convert a list to a vec, taking values from the default if the list is short.
+fromListOr :: (VecList a v, Fold def a) => def -> [a] -> v
+fromListOr def xs = fromList (xs ++ P.drop (P.length xs) (toList def))
 
 blurt :: IORef State -> IO ()
 blurt r = do
