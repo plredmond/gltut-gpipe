@@ -1,5 +1,5 @@
---module Main where
-module Tutorials.WorldScene where
+module Main where
+--module Tutorials.WorldScene where
 
 -- qualified
 
@@ -197,8 +197,6 @@ main = do
     meshm <- loadMeshes meshPath
     trees <- Paths.getDataFileName "forest.vec4" >>= loadTrees 
     -- convert meshes to streams and put them in the scene
-    print (Map.size meshm)
-    print (Map.lookup "plane" meshm)
     -- build the rest of the components, put everything on the gpu
     let scene = fmap (compToGPU meshm)
                      $ static_scene
@@ -237,7 +235,7 @@ display rst gst sst = draw fragments cleared
                   $ sst
 --      camTarget       = fromJust $ fromDynamic (gst ! "camTarget")       :: Vec3 Float
 --      sphereCamRelPos = fromJust $ fromDynamic (gst ! "sphereCamRelPos") :: SphereCoords
-        cam = 1:.1:.1:.()
+        cam = 100:.((* 100) . sin $ RenderState.getSeconds rst):.100:.()
         world2cam = let up = 0:.1:.0:.()
                         tgt = 0:.0.05:.0:.()
                         in multmm (transpose $ rotationLookAt up cam tgt) (translation $ -cam)
