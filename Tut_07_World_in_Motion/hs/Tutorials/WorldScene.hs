@@ -3,6 +3,7 @@ module Main where
 
 -- qualified
 
+import qualified GHC.Float as F
 import qualified Control.Monad as Monad
 import qualified Data.Traversable as T
 import qualified Data.Monoid as Monoid
@@ -67,10 +68,23 @@ deg2rad = Angle.toRad . Angle.fromDeg
 
 -- Dynamic Information --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
+data FPSInfo = FPSInfo
+    { fiFrameDate :: Double
+    , fiAvgFPS :: Double
+    } deriving(Show)
+
+updateFPS :: Double -> Double -> FPSInfo -> FPSInfo
+updateFPS learnRate dateS (FPSInfo prevDateS prevFPS) = FPSInfo dateS avgFPS
+    where
+        elapsedS = dateS - prevDateS
+        curFPS = 1 / elapsedS
+        avgFPS = (1 - learnRate) * prevFPS + learnRate * curFPS
+
 data State = State
     { drawLookatPoint :: Bool
     , camTarget       :: Vec3 Float
     , sphereCamRelPos :: SphereCoord Float
+    , fpsInfo         :: FPSInfo
     } deriving(Show)
         
 initialState :: State
@@ -78,6 +92,7 @@ initialState = State
     { drawLookatPoint = False
     , camTarget       = 0:.0.4:.0:.()
     , sphereCamRelPos = sphereCoord 150 (Angle.fromDeg 67.5) (Angle.fromDeg $ -46)
+    , fpsInfo = FPSInfo (-100) 0
     }
 
 -- Static Information --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -220,7 +235,10 @@ keyboard _ _      _ = return ()
 displayIO :: IORef State -> [StaticState] -> Vec2 Int -> IO (FrameBuffer RGBAFormat DepthFormat ())
 displayIO ref sst size = do
     rst <- RenderState.new size
-    gst <- R.readIORef ref
+    gst <- R.atomicModifyIORef ref (\gst0 ->
+            let gst1 = gst0 { fpsInfo = updateFPS 0.5 (F.float2Double $ RenderState.getSeconds rst) (fpsInfo gst0) }
+            in (gst1, gst1))
+    Pf.printf "%.3f FPS\n" $ fiAvgFPS . fpsInfo $ gst
     return $ display rst gst sst
 --    return $ newFrameBufferColorDepth (RGB $ vec 0) 1
 
