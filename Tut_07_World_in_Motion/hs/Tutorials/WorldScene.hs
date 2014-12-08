@@ -248,20 +248,21 @@ display rst gst sst = draw fragments cleared
         draw = paintColorRastDepth Lequal True NoBlending (RGBA (vec True) True)
         cleared = newFrameBufferColorDepth (RGBA (vec 0) 1) 1
         fragments = Monoid.mconcat
-                  . P.map (rastComp (Mat . toGPU $ cam2clip)
-                                    (Mat . toGPU $ world2cam))
+                  . P.map (rastComp cam2clip world2cam)
                   $ sst
 --      camTarget       = fromJust $ fromDynamic (gst ! "camTarget")       :: Vec3 Float
 --      sphereCamRelPos = fromJust $ fromDynamic (gst ! "sphereCamRelPos") :: SphereCoords
         cam = 100:.((* 100) . sin $ RenderState.getSeconds rst):.100:.()
         world2cam = let up = 0:.1:.0:.()
                         tgt = 0:.0.05:.0:.()
-                        in multmm (transpose $ rotationLookAt up cam tgt) (translation $ -cam)
-                        -- multmm (translation $ -cam) (rotationLookAt up cam tgt)
+                        m = multmm (transpose $ rotationLookAt up cam tgt) (translation $ -cam)
+                    --  m = multmm (translation $ -cam) (rotationLookAt up cam tgt)
+                    in Mat $ toGPU m :: Mat Wo Ca
         cam2clip = let zNear = 1
                        zFar = 1000
                        fovDeg = 45
-                       in perspective zNear zFar (deg2rad fovDeg) (RenderState.getAspectRatio rst)
+                       m = perspective zNear zFar (deg2rad fovDeg) (RenderState.getAspectRatio rst)
+                   in Mat $ toGPU m :: Mat Ca Cl
         -- world2clip = toGPU $ multmm cam2clip world2cam
 -- 
 --resolveCamPosition :: Vec3 Float -> SphereCoords -> Vec3 Float
