@@ -13,6 +13,7 @@ import qualified System.FilePath as Path
 import qualified Graphics.UI.GLUT as GLUT
 import qualified Graphics.GLTut.Framework as Framework
 import qualified Graphics.GLTut.MatrixStack as MS
+import qualified Graphics.GLTut.Easing as Easing
 import qualified Paths_gltut_tut07 as Paths
 import qualified Graphics.GLTut.Tri as Tri
 
@@ -252,7 +253,11 @@ display rst gst sst = draw fragments cleared
                   $ sst
 --      camTarget       = fromJust $ fromDynamic (gst ! "camTarget")       :: Vec3 Float
 --      sphereCamRelPos = fromJust $ fromDynamic (gst ! "sphereCamRelPos") :: SphereCoords
-        cam = 100:.((* 100) . sin $ RenderState.getSeconds rst):.100:.()
+        cam = let sec = RenderState.getSeconds $ rst
+                  range = 5
+                  rock = Easing.easeMiddUpDownUp sec 16 `Easing.onRange` (-range, range)
+                  sway = Easing.easeThereAndBack sec 16 `Easing.onRange` (range, range * 2)
+              in rock:.(range / 2):.sway:.()
         world2cam = let up = 0:.1:.0:.()
                         tgt = 0:.0.05:.0:.()
                         m = multmm (transpose $ rotationLookAt up cam tgt) (translation $ -cam)
