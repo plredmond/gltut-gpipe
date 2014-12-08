@@ -207,6 +207,17 @@ compToGPU meshm (Component {mesh=mn, meshVAO=vao, transformations=t, program=p})
                 UniformColorTint {baseColor = b} -> UniformColorTint {baseColor = toGPU b}
     )
 
+axesGPUComp :: StaticState
+axesGPUComp = let mk (pos, col) = IntMap.fromList [(0, toList pos), (1, toList col)]
+              in ([Tri.Ken . fmap mk $ axesStream], Mat identity, ObjectColor)
+    where
+        axesStream :: PrimitiveStream Line (VertexPosition, Vec4 (Vertex Float))
+        axesStream = let mk vs c = toGPUStream LineStrip $ zip (P.map homPoint vs) (repeat c)
+                     in Monoid.mconcat [ mk [(-1):.0:.0:.(), 1:.0:.0:.(), 0.8:.(-0.1):.0:.(), 0.8:.0:.0:.(), 1:.(-0.1):.0:.()]       (1:.0:.0:.1:.())
+                                       , mk [0:.(-1):.0:.(), 0:.1:.0:.(), 0:.0.8:.(-0.1):.(), 0:.0.9:.(-0.05):.(), 0:.1:.(-0.1):.()] (0:.1:.0:.1:.())
+                                       , mk [0:.0:.(-1):.(), 0:.0:.1:.(), (-0.1):.0:.0.8:.(), (-0.1):.0:.1:.()]                      (0:.0:.1:.1:.())
+                                       ]
+
 main :: IO ()
 main = do
     [meshPath] <- usage
@@ -220,7 +231,7 @@ main = do
     -- enter common mainloop
     ref <- R.newIORef initialState
     Framework.main (keyboard ref)
-                   (displayIO ref scene)
+                   (displayIO ref $ axesGPUComp : scene)
                    initialize
 
 -- Set up the window.
