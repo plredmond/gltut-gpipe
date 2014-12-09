@@ -300,9 +300,9 @@ rastComp ca2cl wo2ca (prims, mo2wo, prog) = Monoid.mconcat
 
 -- Produce a pipeline to apply shaders and rasterize.
 progPipe :: MatTup -> Program (Fragment Float) -> PrimitiveStream p AttributeMap -> FragmentStream (Color RGBAFormat (Fragment Float))
-progPipe mats (UniformColor {baseColor = b})     = fmap (fColorUniform b)     . rasterizeFront . fmap (vPosOnlyWorldTransform mats)
-progPipe mats  ObjectColor                       = fmap  fColorPassthrough    . rasterizeFront . fmap (vPosColorWorldTransform mats)
-progPipe mats (UniformColorTint {baseColor = b}) = fmap (fColorMultUniform b) . rasterizeFront . fmap (vPosColorWorldTransform mats)
+progPipe mats (UniformColor {baseColor = b})     = fmap (fColorUniform b)     . rasterizeBack . fmap (vPosOnlyWorldTransform mats)
+progPipe mats  ObjectColor                       = fmap  fColorPassthrough    . rasterizeBack . fmap (vPosColorWorldTransform mats)
+progPipe mats (UniformColorTint {baseColor = b}) = fmap (fColorMultUniform b) . rasterizeBack . fmap (vPosColorWorldTransform mats)
 
 -- Shaders
 
