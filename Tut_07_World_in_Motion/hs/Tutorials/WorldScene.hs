@@ -141,25 +141,16 @@ static_scene =
     ]
 
 treeComponents :: (Floating a) => Tree a -> [Component a]
-treeComponents (Tree x z trunk cone) =
-    [ template { mesh = "cylinder"
-               , transformations = both
-               , program = UniformColorTint {baseColor = 0.694:.0.4:.0.106:.1.0:.()}
-               }
-    , template { mesh = "cone"
-               , transformations = both ++
-                                   [ MS.Translate MS.Y trunk
-                                   , MS.ScaleAll $ 3:.cone:.3:.()
-                                   ]
-               , program = UniformColorTint {baseColor = 0:.1:.0:.1:.()}
-               }
-    ]
-    where
-        both = [ MS.TranslateAll $ x:.0:.z:.()
-               , MS.Scale MS.Y trunk
-               , MS.Translate MS.Y 0.5
-               ]
-
+treeComponents (Tree x z trunk cone) = let loc = MS.TranslateAll $ x:.0:.z:.()
+    in [ template { mesh = "cylinder"
+                  , transformations = [loc, MS.Scale MS.Y trunk, MS.Translate MS.Y 0.5]
+                  , program = UniformColorTint {baseColor = 0.694:.0.4:.0.106:.1.0:.()}
+                  }
+       , template { mesh = "cone"
+                  , transformations = [loc, MS.Translate MS.Y trunk, MS.ScaleAll $ 3:.cone:.3:.()]
+                  , program = UniformColorTint {baseColor = 0:.1:.0:.1:.()}
+                  }
+       ]
 
 data Mo -- Model Space Type
 data Wo -- World Space Type
