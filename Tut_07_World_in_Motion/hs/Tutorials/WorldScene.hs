@@ -243,7 +243,6 @@ displayIO ref sst size = do
             in (gst1, gst1))
     Pf.printf "%.3f FPS\n" $ fiAvgFPS . fpsInfo $ gst
     return $ display rst gst sst
---    return $ newFrameBufferColorDepth (RGB $ vec 0) 1
 
 display :: RenderState Float -> State -> [StaticState] -> FrameBuffer RGBAFormat DepthFormat ()
 display rst gst sst = draw fragments cleared
@@ -256,7 +255,7 @@ display rst gst sst = draw fragments cleared
 --      camTarget       = fromJust $ fromDynamic (gst ! "camTarget")       :: Vec3 Float
 --      sphereCamRelPos = fromJust $ fromDynamic (gst ! "sphereCamRelPos") :: SphereCoords
         cam = let sec = RenderState.getSeconds $ rst
-                  range = 5
+                  range = 50
                   rock = Easing.easeMiddUpDownUp sec 16 `Easing.onRange` (-range, range)
                   sway = Easing.easeThereAndBack sec 16 `Easing.onRange` (range, range * 2)
               in rock:.(range / 2):.sway:.()
