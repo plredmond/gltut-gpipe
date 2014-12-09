@@ -309,12 +309,12 @@ progPipe mats (UniformColorTint {baseColor = b}) = fmap (fColorMultUniform b) . 
 vPosOnlyWorldTransform :: MatTup -> AttributeMap -> (VertexPosition, ())
 vPosOnlyWorldTransform mats attrm = (vPosWorldTransform mats pos, ())
    where
-       pos = getVec (vec 0) 0 attrm
+       pos = getVec (vec 1) 0 attrm
 
 vPosColorWorldTransform :: MatTup -> AttributeMap -> (VertexPosition, Vec4 (Vertex Float))
 vPosColorWorldTransform mats attrm = (vPosWorldTransform mats pos, color)
    where
-       pos   = getVec (vec 0) 0 attrm
+       pos   = getVec (vec 1) 0 attrm
        color = getVec (vec 0) 1 attrm
 
 fColorUniform :: Vec4 a -> () -> Color RGBAFormat a
