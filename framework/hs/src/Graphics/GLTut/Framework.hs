@@ -2,12 +2,9 @@ module Graphics.GLTut.Framework where
 
 -- Provide a common main routine for all tutorials to use.
 
-import qualified Graphics.Rendering.OpenGL as GL
-import qualified Graphics.UI.GLUT as GLUT
 import qualified Graphics.GPipe as GPipe
+import qualified Graphics.GPipe.Context.GLFW as GLFW
 
-import Graphics.UI.GLUT (($=))
-import Graphics.GPipe ((:.)(..))
 import Text.Printf (printf)
 
 main
