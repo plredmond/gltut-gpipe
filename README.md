@@ -2,9 +2,9 @@
 
 ## Learning Modern 3D Graphics Programming
 
-This is a port of a series of tutorials written by Jason McKesson and originally published at ~~arcsynthesis.org/gltut~~.
+This is a port of a series of tutorials written by _Jason L. McKesson_ and originally published at ~~arcsynthesis.org/gltut~~.
 That site has been offline for several years now,
-and the [original code on bitbucket](http://bitbucket.org/alfonse/gltut/wiki/Home) has been inactive for just as long.
+and the original code at ~~bitbucket.org/alfonse/gltut/wiki/Home~~ is also no longer available.
 Thankfully there is an updated [fork on github](http://github.com/paroj/gltut) receiving love from the community and
 the tutorials have been republished at <http://paroj.github.io/gltut/>.
 
