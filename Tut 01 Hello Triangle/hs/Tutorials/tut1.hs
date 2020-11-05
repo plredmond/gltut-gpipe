@@ -42,45 +42,32 @@ initializeVertexBuffer = do
         , V4 -0.75 -0.75 0 1
         ]
 
--- | Rather heavyweight abstraction of the shader environment. Contains the
--- minimum number of extraction functions for GPipe. If you don't want to use
--- an environment like this, you could hardcode these values with 'const' into
--- the shader code.
-data ShaderEnv os prim vert cfmt dfmt = ShaderEnv
-   { getPrimArr :: PrimitiveArray prim vert
-   , getRastOpt :: (Side, ViewPort, DepthRange)
-   , getDrawOpt :: (Window os cfmt dfmt, ContextColorOption cfmt)
-   }
-
 -- | Somewhat minimal shader which gets the (single) vertex array as a
 -- primitive stream, maps a noop vertex-shader over it, rasterizes to a
 -- fragment stream, maps the noop fragment-shader over it, and draws to the
 -- window specified by the environment.
-shaderCode :: Shader os (ShaderEnv os prim (B4 Float) RGBAFloat dfmt) ()
+type ShaderEnv os prim = (Window os RGBAFloat (), PrimitiveArray prim (B4 Float), V2 Int)
+shaderCode :: Shader os (ShaderEnv os prim) ()
 shaderCode = do
     primStream <- toPrimitiveStream getPrimArr
     fragStream <- rasterize getRastOpt $ vertShader <$> primStream
     drawWindowColor getDrawOpt $ fragShader <$> fragStream
---  = drawWindowColor getDrawOpt . fmap fragShader -- Alternate way to write the same code, using a compositional style.
---  =<< rasterize getRastOpt . fmap vertShader
---  =<< toPrimitiveStream getPrimArr
   where
+    getPrimArr (_, arr, _) = arr
+    getRastOpt (_, _, siz) = (FrontAndBack, ViewPort (V2 0 0) siz, DepthRange 0 1)
+    getDrawOpt (win, _, _) = (win, ContextColorOption NoBlending (V4 True True True True))
     vertShader pos = (pos, ()) -- no input to be interpolated by fragment shader
     fragShader () = V4 1 1 1 1 -- hardcoded color & color-format
 
 display
     :: Window os RGBAFloat ()
     -> Buffer os (B4 Float)
-    -> CompiledShader os (ShaderEnv os Triangles (B4 Float) RGBAFloat ())
+    -> CompiledShader os (ShaderEnv os Triangles)
     -> ContextT Handle os IO ()
 display win vertexBuffer shaderProg = do
     Just (x, y) <- GLFW.getWindowSize win -- whereas gltut uses a reshape callback
     render $ do
         clearWindowColor win (V4 0 0 0 0)
         vertexArray <- newVertexArray vertexBuffer
-        shaderProg $ ShaderEnv
-            { getPrimArr = toPrimitiveArray TriangleList vertexArray
-            , getRastOpt = (FrontAndBack, ViewPort (V2 0 0) (V2 x y), DepthRange 0 1)
-            , getDrawOpt = (win, ContextColorOption NoBlending (V4 True True True True))
-            }
+        shaderProg (win, toPrimitiveArray TriangleList vertexArray, V2 x y)
     swapWindowBuffers win
