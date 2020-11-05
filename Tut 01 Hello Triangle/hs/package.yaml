@@ -1,0 +1,15 @@
+name: tut01
+
+dependencies:
+    - GPipe
+    - GPipe-GLFW
+    - base
+
+ghc-options:
+    - -Wall
+    - -threaded -rtsopts -with-rtsopts=-N
+
+executables:
+    tut1:
+        source-dirs: Tutorials
+        main: tut1.hs

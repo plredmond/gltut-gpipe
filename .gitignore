@@ -16,3 +16,5 @@ paroj.git/
 glsdk/
 html/
 index.html
+*.cabal
+dist/
