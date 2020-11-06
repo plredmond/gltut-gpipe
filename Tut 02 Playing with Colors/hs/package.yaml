@@ -1,0 +1,22 @@
+name: tut02
+
+dependencies:
+    - GPipe
+    - GPipe-GLFW
+    - base
+
+ghc-options:
+    - -Wall
+    - -threaded -rtsopts -with-rtsopts=-N
+
+executables:
+    # Tutorials
+    FragPosition:
+        main: FragPosition.hs
+    VertexColors:
+        main: VertexColors.hs
+    # Further study
+    FragPosition_SettableViewport:
+        main: FragPosition_SettableViewport.hs
+    FragPosition_VertexColors:
+        main: FragPosition_VertexColors.hs
