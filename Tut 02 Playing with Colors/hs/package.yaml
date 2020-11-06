@@ -16,7 +16,7 @@ executables:
     VertexColors:
         main: VertexColors.hs
     # Further study
-    FragPosition_SettableViewport:
-        main: FragPosition_SettableViewport.hs
+    ## For the "settable viewport" further study, you can just move the window
+    ## around your screen or resize it.
     FragPosition_VertexColors:
         main: FragPosition_VertexColors.hs
