@@ -1,0 +1,27 @@
+name: tut03
+
+dependencies:
+    - GPipe
+    - GPipe-GLFW
+    - base
+    - lens
+
+ghc-options:
+    - -Wall
+    - -threaded -rtsopts -with-rtsopts=-N
+
+executables:
+    # Tutorials
+    cpuPositionOffset:
+        main: cpuPositionOffset.hs
+    vertPositionOffset:
+        main: vertPositionOffset.hs
+    vertCalcOffset:
+        main: vertCalcOffset.hs
+    fragChangeColor:
+        main: fragChangeColor.hs
+    # Further study
+    vertCalcOffset_TwoTriangles:
+        main: vertCalcOffset_TwoTriangles.hs
+    fragChangeColor_SmoothTransition:
+        main: fragChangeColor_SmoothTransition.hs
