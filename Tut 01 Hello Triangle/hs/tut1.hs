@@ -50,8 +50,8 @@ type ShaderEnv os prim = (Window os RGBAFloat (), PrimitiveArray prim (B4 Float)
 shaderCode :: Shader os (ShaderEnv os prim) ()
 shaderCode = do
     primStream <- toPrimitiveStream getPrimArr
-    fragStream <- rasterize getRastOpt $ vertShader <$> primStream
-    drawWindowColor getDrawOpt $ fragShader <$> fragStream
+    fragStream <- rasterize getRastOpt $ fmap vertShader primStream
+    drawWindowColor getDrawOpt $ fmap fragShader fragStream
   where
     getPrimArr (_, arr, _) = arr
     getRastOpt (_, _, siz) = (FrontAndBack, ViewPort (V2 0 0) siz, DepthRange 0 1)
