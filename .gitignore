@@ -18,3 +18,4 @@ html/
 index.html
 *.cabal
 dist/
+result

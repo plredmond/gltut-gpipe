@@ -12,7 +12,8 @@ let
   haskellPackages = elsewhere.haskellPackages;
   # define the derivation and the environment
   projectPackages = with haskellPackages; [
-    (callCabal2nix "tut01" ./Tut_01_Hello_Triangle/hs { })
+    (callCabal2nix "tut01" ./Tut_01/hs { })
+    (callCabal2nix "tut02" ./Tut_02/hs { })
     #(callCabal2nix "framework" ./framework/hs { })
   ];
   drv = nixpkgs.buildEnv { name = "gltut-project"; paths = projectPackages; };
