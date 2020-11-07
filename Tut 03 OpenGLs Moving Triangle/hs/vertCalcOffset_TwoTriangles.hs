@@ -1,65 +1,113 @@
-import qualified Graphics.GLTut.Framework as Framework
-import qualified Graphics.UI.GLUT as GLUT
+{-# LANGUAGE LambdaCase, NegativeLiterals #-} -- syntax niceties
+{-# LANGUAGE TypeFamilies #-} -- gpipe requirements
 
-import Graphics.GPipe
-import Data.Vec as V
-import Prelude as P
+import Control.Monad.IO.Class (liftIO)
+import System.Environment (getProgName)
+import qualified Control.Concurrent.MVar as MVar
+import qualified Control.Lens as Lens
+
+import Graphics.GPipe -- unqualified
+import Graphics.GPipe.Context.GLFW (Handle)
+import qualified Graphics.GPipe.Context.GLFW as GLFW
 
 main :: IO ()
-main = Framework.main keyboard displayIO initialize
+main = runContextT GLFW.defaultHandleConfig $ do
+    -- make a window
+    win <- newWindow (WindowFormatColor RGBA8) . GLFW.defaultWindowConfig =<< liftIO getProgName
+    -- hook up to receive ESC key and window-close events
+    close <- liftIO $ MVar.newEmptyMVar
+    _ <- GLFW.setWindowCloseCallback win . Just $
+        MVar.tryPutMVar close "window closed" >> return ()
+    _ <- GLFW.setKeyCallback win . Just $ \k _ ks _ -> case (k, ks) of
+        (GLFW.Key'Escape, GLFW.KeyState'Pressed) -> MVar.tryPutMVar close "escape key" >> return ()
+        _ -> return ()
+    -- initializeProgram
+    prog <- compileShader shaderCode
+    buff <- initializeVertexBuffer
+    unif <- newBuffer 2 -- We'll store both the loop-duration and elapsed-seconds in one uniform buffer.
+    writeBuffer unif loopDurUnifOffset [5]
+    -- framework
+    loop close win unif buff prog
+  where
+    loop close win unif buff prog = (liftIO $ MVar.tryReadMVar close) >>= \case
+        Just msg -> liftIO . putStrLn $ "stopping because: " ++ msg
+        Nothing -> display win unif buff prog >> loop close win unif buff prog
 
--- Set up the window.
-initialize :: GLUT.Window -> IO ()
-initialize w = GLUT.idleCallback GLUT.$= (Just . GLUT.postRedisplay . Just $ w)
+loopDurUnifOffset :: BufferStartPos
+loopDurUnifOffset = 0
 
--- Handle keyboard events.
-keyboard :: Char -> GLUT.Position -> IO ()
-keyboard '\ESC' _ = do GLUT.leaveMainLoop
-keyboard _      _ = do return ()
+secondsUnifOffset :: BufferStartPos
+secondsUnifOffset = 1
 
--- Perform IO on behalf of display. Call display to produce the framebuffer.
-displayIO :: Vec2 Int -> IO (FrameBuffer RGBFormat () ())
-displayIO size = do
-    milliseconds <- GLUT.get GLUT.elapsedTime
-    return $ display size (fromIntegral milliseconds / 1000)
+initializeVertexBuffer :: ContextT Handle os IO (Buffer os (B4 Float))
+initializeVertexBuffer = do
+    positionBufferObject <- newBuffer $ length vertexPositions
+    writeBuffer positionBufferObject 0 vertexPositions
+    return positionBufferObject
 
--- Combine scene elements on a framebuffer.
-display :: Vec2 Int -> Float -> FrameBuffer RGBFormat () ()
-display _ sec = P.foldr draw cleared fragments_s
-    where
-        draw = paintColor NoBlending (RGB $ vec True)
-        cleared = newFrameBufferColor (RGB $ vec 0)
-        -- list of fragment streams
-        fragments_s :: [FragmentStream (Color RGBFormat (Fragment Float))]
-        fragments_s = P.map (fmap fs)
-                    $ P.map rasterizeBack
-                    $ P.map (\(stream', sec') -> fmap (vs sec') stream')
-                    [ (stream, toGPU sec)
-                    , (stream, toGPU $ sec + 2.5)
-                    ]
-
-stream :: PrimitiveStream Triangle (Vec4 (Vertex Float))
-stream = toGPUStream TriangleList
-    [ ( 0.25):.( 0.25):.0:.1:.()
-    , ( 0.25):.(-0.25):.0:.1:.()
-    , (-0.25):.(-0.25):.0:.1:.()
+vertexPositions :: [V4 Float]
+vertexPositions =
+    [ V4  0.25  0.25 0 1
+    , V4  0.25 -0.25 0 1
+    , V4 -0.25 -0.25 0 1
     ]
 
--- Calculate the offset in a vertex shader.
-computePositionOffsets :: Vertex Float -> Vec2 (Vertex Float)
-computePositionOffsets elapsedTime = (0.5 * cos (currTimeThroughLoop * sf)) :.
-                                     (0.5 * sin (currTimeThroughLoop * sf)) :. ()
-    where
-        loopDuration = 5
-        sf = pi * 2 / loopDuration
-        currTimeThroughLoop = mod' elapsedTime loopDuration
+-- | The new shader env datatype is mostly a noop change. The latter three
+-- fields in this env datatype have the names and types as the functions they
+-- replaced. The first two fields are new, and they facilitate getting a
+-- uniform value. Some options previously hardcoded into the shader are instead
+-- hardcoded into the display function and passed to the shader via this env
+-- datatype.
+data ShaderEnv os = ShaderEnv
+    { getLoopDur :: (Buffer os (Uniform (B Float)), Int)
+    , getSeconds :: (Buffer os (Uniform (B Float)), Int)
+    , getPrimArr :: PrimitiveArray Triangles (B4 Float)
+    , getRastOpt :: (Side, ViewPort, DepthRange)
+    , getDrawOpt :: (Window os RGBAFloat (), ContextColorOption RGBAFloat)
+    }
+shaderCode :: Shader os (ShaderEnv os) ()
+shaderCode = do
+    loopDur <- getUniform getLoopDur
+    seconds <- getUniform getSeconds
+    let offsets  = computePositionOffsets loopDur seconds
+        offsets2 = computePositionOffsets loopDur (seconds + loopDur/2)
+        vertShader offs pos = (Lens.over _xy (+offs) pos, ()) -- no input to be interpolated by fragment shader
+        fragShader () = 1
+    primStream <- toPrimitiveStream getPrimArr
+    fragStream <- rasterize getRastOpt
+        $ fmap (vertShader offsets) primStream
+        <> fmap (vertShader offsets2) primStream
+    drawWindowColor getDrawOpt $ fmap fragShader fragStream
 
-vs :: Vertex Float -> Vec4 (Vertex Float) -> (Vec4 (Vertex Float), ())
-vs sec pos = (xyoffset + pos, ())
-    where
-        xyoffset = V.append (computePositionOffsets sec) (vec 0)
+display
+    :: Window os RGBAFloat ()
+    -> Buffer os (Uniform (B Float))
+    -> Buffer os (B4 Float)
+    -> CompiledShader os (ShaderEnv os)
+    -> ContextT Handle os IO ()
+display win singletonUnif vertexBuffer shaderProg = do
+    adjustSecondsUniform
+    Just (x, y) <- GLFW.getWindowSize win -- whereas gltut uses a reshape callback
+    render $ do
+        clearWindowColor win (V4 0 0 0 0)
+        vertexArray <- newVertexArray vertexBuffer
+        shaderProg ShaderEnv
+            { getLoopDur = (singletonUnif, loopDurUnifOffset)
+            , getSeconds = (singletonUnif, secondsUnifOffset)
+            , getPrimArr = toPrimitiveArray TriangleList vertexArray
+            , getRastOpt = (FrontAndBack, ViewPort (V2 0 0) (V2 x y), DepthRange 0 1)
+            , getDrawOpt = (win, ContextColorOption NoBlending (V4 True True True True))
+            }
+    swapWindowBuffers win
+  where
+    adjustSecondsUniform = do
+        seconds <- liftIO GLFW.getTime
+        writeBuffer singletonUnif secondsUnifOffset [maybe 0 realToFrac seconds]
 
-fs :: () -> Color RGBFormat (Fragment Float)
-fs _ = RGB $ vec 1
-
--- eof
+computePositionOffsets :: Real' a => a -> a -> V2 a
+computePositionOffsets loopDuration elapsedTime = V2
+    (0.5 * cos (currTimeThroughLoop * scale))
+    (0.5 * sin (currTimeThroughLoop * scale))
+  where
+    scale = pi * 2 / loopDuration
+    currTimeThroughLoop = mod'' elapsedTime loopDuration
