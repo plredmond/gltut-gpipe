@@ -11,12 +11,12 @@ ghc-options:
 
 executables:
     # Tutorials
-    FragPosition:
-        main: FragPosition.hs
-    VertexColors:
-        main: VertexColors.hs
+    fragPosition:
+        main: fragPosition.hs
+    vertexColors:
+        main: vertexColors.hs
     # Further study
     ## For the "settable viewport" further study, you can just move the window
     ## around your screen or resize it.
-    FragPosition_VertexColors:
-        main: FragPosition_VertexColors.hs
+    fragPosition_VertexColors:
+        main: fragPosition_VertexColors.hs
