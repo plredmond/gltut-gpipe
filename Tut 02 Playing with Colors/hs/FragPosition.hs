@@ -42,8 +42,8 @@ initializeVertexBuffer = do
         , V4 -0.75 -0.75 0 1
         ]
 
-type ShaderEnv os prim = (Window os RGBAFloat (), PrimitiveArray prim (B4 Float), V2 Int)
-shaderCode :: Shader os (ShaderEnv os prim) ()
+type ShaderEnv os = (Window os RGBAFloat (), PrimitiveArray Triangles (B4 Float), V2 Int)
+shaderCode :: Shader os (ShaderEnv os) ()
 shaderCode = do
     primStream <- toPrimitiveStream getPrimArr
     fragStream <- rasterize getRastOpt $ fmap vertShader primStream
@@ -61,12 +61,13 @@ shaderCode = do
 display
     :: Window os RGBAFloat ()
     -> Buffer os (B4 Float)
-    -> CompiledShader os (ShaderEnv os Triangles)
+    -> CompiledShader os (ShaderEnv os)
     -> ContextT Handle os IO ()
 display win vertexBuffer shaderProg = do
     Just (x, y) <- GLFW.getWindowSize win -- whereas gltut uses a reshape callback
     render $ do
         clearWindowColor win (V4 0 0 0 0)
         vertexArray <- newVertexArray vertexBuffer
-        shaderProg (win, toPrimitiveArray TriangleList vertexArray, V2 x y)
+        shaderProg
+            (win, toPrimitiveArray TriangleList vertexArray, V2 x y)
     swapWindowBuffers win
