@@ -24,13 +24,20 @@ main = runContextT GLFW.defaultHandleConfig $ do
     -- initializeProgram
     prog <- compileShader shaderCode
     buff <- initializeVertexBuffer
-    unif <- newBuffer 1
+    unif <- newBuffer 2 -- We'll store both the loop-duration and elapsed-seconds in one uniform buffer.
+    writeBuffer unif loopDurUnifOffset [5]
     -- framework
     loop close win unif buff prog
   where
     loop close win unif buff prog = (liftIO $ MVar.tryReadMVar close) >>= \case
         Just msg -> liftIO . putStrLn $ "stopping because: " ++ msg
         Nothing -> display win unif buff prog >> loop close win unif buff prog
+
+loopDurUnifOffset :: BufferStartPos
+loopDurUnifOffset = 0
+
+secondsUnifOffset :: BufferStartPos
+secondsUnifOffset = 1
 
 initializeVertexBuffer :: ContextT Handle os IO (Buffer os (B4 Float))
 initializeVertexBuffer = do
@@ -45,20 +52,24 @@ vertexPositions =
     , V4 -0.25 -0.25 0 1
     ]
 
--- | The new shader env datatype is mostly a noop change. The fields in this
--- env datatype have the names and types as the functions they replaced. Some
--- options previously hardcoded into the shader are instead hardcoded into the
--- display function and passed to the shader.
+-- | The new shader env datatype is mostly a noop change. The latter three
+-- fields in this env datatype have the names and types as the functions they
+-- replaced. The first two fields are new, and they facilitate getting a
+-- uniform value. Some options previously hardcoded into the shader are instead
+-- hardcoded into the display function and passed to the shader via this env
+-- datatype.
 data ShaderEnv os = ShaderEnv
-    { getSeconds :: (Buffer os (Uniform (B Float)), Int)
+    { getLoopDur :: (Buffer os (Uniform (B Float)), Int)
+    , getSeconds :: (Buffer os (Uniform (B Float)), Int)
     , getPrimArr :: PrimitiveArray Triangles (B4 Float)
     , getRastOpt :: (Side, ViewPort, DepthRange)
     , getDrawOpt :: (Window os RGBAFloat (), ContextColorOption RGBAFloat)
     }
 shaderCode :: Shader os (ShaderEnv os) ()
 shaderCode = do
+    loopDur <- getUniform getLoopDur
     seconds <- getUniform getSeconds
-    let offsets = computePositionOffsets seconds
+    let offsets = computePositionOffsets loopDur seconds
         vertShader pos = (Lens.over _xy (+offsets) pos, ()) -- no input to be interpolated by fragment shader
         fragShader () = 1
     primStream <- toPrimitiveStream getPrimArr
@@ -71,14 +82,15 @@ display
     -> Buffer os (B4 Float)
     -> CompiledShader os (ShaderEnv os)
     -> ContextT Handle os IO ()
-display win secondsUnif vertexBuffer shaderProg = do
+display win singletonUnif vertexBuffer shaderProg = do
     adjustSecondsUniform
     Just (x, y) <- GLFW.getWindowSize win -- whereas gltut uses a reshape callback
     render $ do
         clearWindowColor win (V4 0 0 0 0)
         vertexArray <- newVertexArray vertexBuffer
         shaderProg ShaderEnv
-            { getSeconds = (secondsUnif, 0)
+            { getLoopDur = (singletonUnif, loopDurUnifOffset)
+            , getSeconds = (singletonUnif, secondsUnifOffset)
             , getPrimArr = toPrimitiveArray TriangleList vertexArray
             , getRastOpt = (FrontAndBack, ViewPort (V2 0 0) (V2 x y), DepthRange 0 1)
             , getDrawOpt = (win, ContextColorOption NoBlending (V4 True True True True))
@@ -87,14 +99,12 @@ display win secondsUnif vertexBuffer shaderProg = do
   where
     adjustSecondsUniform = do
         seconds <- liftIO GLFW.getTime
-        writeBuffer secondsUnif 0 . (:[])
-            $ maybe 0 realToFrac seconds
+        writeBuffer singletonUnif secondsUnifOffset [maybe 0 realToFrac seconds]
 
-computePositionOffsets :: Real' a => a -> V2 a
-computePositionOffsets elapsedTime = V2
+computePositionOffsets :: Real' a => a -> a -> V2 a
+computePositionOffsets loopDuration elapsedTime = V2
     (0.5 * cos (currTimeThroughLoop * scale))
     (0.5 * sin (currTimeThroughLoop * scale))
   where
-    loopDuration = 5
     scale = pi * 2 / loopDuration
     currTimeThroughLoop = mod'' elapsedTime loopDuration
