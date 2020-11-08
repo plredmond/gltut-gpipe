@@ -19,3 +19,4 @@ index.html
 *.cabal
 dist/
 result
+*.swo
