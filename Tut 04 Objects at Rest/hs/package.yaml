@@ -1,0 +1,41 @@
+name: tut03
+
+dependencies:
+    - GPipe
+    - GPipe-GLFW
+    - base
+    - lens
+
+ghc-options:
+    - -Wall
+    - -threaded -rtsopts -with-rtsopts=-N
+data-files:
+    - cube.vec4
+
+library:
+    source-dirs: lib
+executables:
+    # Tutorials
+    orthoCube:
+        main: orthoCube.hs
+    shaderPerspective:
+        main: shaderPerspective.hs
+    matrixPerspective:
+        main: matrixPerspective.hs
+    aspectRatio:
+        main: aspectRatio.hs
+    # Further study
+    vertCalcOffset_TwoTriangles:
+        main: vertCalcOffset_TwoTriangles.hs
+    fragChangeColor_SmoothTransition:
+        main: fragChangeColor_SmoothTransition.hs
+    aspectRatio_PulseFrustrumScale:
+        main: aspectRatio_PulseFrustrumScale.hs
+    aspectRatio_PulseZNear:
+        main: aspectRatio_PulseZNear.hs
+    aspectRatio_PulseZFar:
+        main: aspectRatio_PulseZFar.hs
+    shaderPerspective_VarProjectionPlane:
+        main: shaderPerspective_VarProjectionPlane.hs
+    aspectRatio_VarProjectionPlane:
+        main: aspectRatio_VarProjectionPlane.hs
