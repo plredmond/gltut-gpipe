@@ -1,6 +1,7 @@
 name: gltut-framework
 
 dependencies:
+    - Boolean
     - GPipe
     - GPipe-GLFW
     - base
@@ -12,3 +13,10 @@ ghc-options:
 
 library:
     source-dirs: lib
+
+tests:
+    doctest:
+        main: Doctest.hs
+        dependencies:
+            - doctest
+            - QuickCheck

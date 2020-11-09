@@ -1,4 +1,6 @@
-{ config ? { /*allowBroken = true;*/ }, ... }:
+{ config ? { /*allowBroken = true;*/ }
+, framework-target ? false
+}:
 let
   gpipe-glfw-src = (import <nixpkgs> { }).fetchFromGitHub {
     owner = "plredmond";
@@ -27,7 +29,11 @@ let
     (callCabal2nix "gltut-tut04" (git-ignore ./Tut_04/hs) { })
   ];
   drv = nixpkgs.buildEnv { name = "gltut-project"; paths = projectPackages; };
-  env = ((builtins.head projectPackages).envFunc { withHoogle = true; }).overrideAttrs
+  shell-drv-target =
+    if framework-target
+    then haskellPackages.gltut-framework
+    else builtins.head projectPackages;
+  env = (shell-drv-target.envFunc { withHoogle = true; }).overrideAttrs
     (old: { nativeBuildInputs = old.nativeBuildInputs ++ [ nixpkgs.ghcid ]; });
 in
 if nixpkgs.lib.inNixShell then env else drv
