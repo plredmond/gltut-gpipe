@@ -1,6 +1,5 @@
-# Haskell/GPipe examples for
-
 ## Learning Modern 3D Graphics Programming
+_Ported to Haskell & GPipe_
 
 This is a port of a series of tutorials written by _Jason L. McKesson_ and originally published at ~~arcsynthesis.org/gltut~~.
 That site has been offline for several years now,
