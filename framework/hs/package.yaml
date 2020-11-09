@@ -1,0 +1,14 @@
+name: framework
+
+dependencies:
+    - GPipe
+    - GPipe-GLFW
+    - base
+    - linear
+
+ghc-options:
+    - -Wall
+    - -threaded -rtsopts -with-rtsopts=-N
+
+library:
+    source-dirs: lib

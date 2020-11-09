@@ -15,7 +15,7 @@ let
     (callCabal2nix "tut01" ./Tut_01/hs { })
     (callCabal2nix "tut02" ./Tut_02/hs { })
     (callCabal2nix "tut03" ./Tut_03/hs { })
-    #(callCabal2nix "framework" ./framework/hs { })
+    (callCabal2nix "framework" ./framework/hs { })
   ];
   drv = nixpkgs.buildEnv { name = "gltut-project"; paths = projectPackages; };
   env = ((builtins.head projectPackages).envFunc { withHoogle = true; }).overrideAttrs
