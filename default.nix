@@ -3,8 +3,8 @@ let
   gpipe-glfw-src = (import <nixpkgs> { }).fetchFromGitHub {
     owner = "plredmond";
     repo = "GPipe-GLFW";
-    rev = "d9a43ec";
-    sha256 = "0xj6ny0n9yw35m80495rjln22fn5szzj7w69911fsm4b0n0k05fk";
+    rev = "b7ec81d";
+    sha256 = "1nydxnldh6g7xlad4j5s0qp834aq6330087lsi1268np266rlhq9";
   };
   # extract pinned nixpkgs and haskellPackages
   elsewhere = import gpipe-glfw-src { inherit config; mkEnv = false; };
