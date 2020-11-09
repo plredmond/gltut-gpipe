@@ -1,9 +1,10 @@
-name: tut01
+name: gltut-tut01
 
 dependencies:
     - GPipe
     - GPipe-GLFW
     - base
+    - gltut-framework
 
 ghc-options:
     - -Wall

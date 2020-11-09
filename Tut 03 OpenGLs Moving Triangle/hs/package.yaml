@@ -1,9 +1,10 @@
-name: tut03
+name: gltut-tut03
 
 dependencies:
     - GPipe
     - GPipe-GLFW
     - base
+    - gltut-framework
     - lens
 
 ghc-options:

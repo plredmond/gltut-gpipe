@@ -1,19 +1,16 @@
-name: tut03
+name: gltut-tut04
 
 dependencies:
     - GPipe
     - GPipe-GLFW
     - base
+    - gltut-framework
     - lens
 
 ghc-options:
     - -Wall
     - -threaded -rtsopts -with-rtsopts=-N
-data-files:
-    - cube.vec4
 
-library:
-    source-dirs: lib
 executables:
     # Tutorials
     orthoCube:
