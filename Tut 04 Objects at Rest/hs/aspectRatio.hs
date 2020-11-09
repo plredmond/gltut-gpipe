@@ -45,8 +45,8 @@ main = runContextT GLFW.defaultHandleConfig $ do
         Just msg -> liftIO . putStrLn $ "stopping because: " ++ msg
         Nothing -> display win unif buff prog >> loop close win unif buff prog
 
-updatePerspectiveMatrix :: Unifs os -> (Int, Int) -> ContextT Handle os IO ()
-updatePerspectiveMatrix Unifs{perspectiveMatrixUnif=(unifM44,buffPos)} (width, height) = do
+updatePerspectiveMatrix :: V2 Int -> Unifs os -> ContextT Handle os IO ()
+updatePerspectiveMatrix (V2 width height) Unifs{perspectiveMatrixUnif=(unifM44,buffPos)} = do
     let frustrumScale = 1
         zNear = 0.5
         zFar = 3
@@ -90,8 +90,8 @@ display
     -> CompiledShader os (ShaderEnv os)
     -> ContextT Handle os IO ()
 display win unifs vertexBuffer shaderProg = do
-    Just size@(x, y) <- GLFW.getWindowSize win -- whereas gltut uses a reshape callback
-    updatePerspectiveMatrix unifs size
+    size <- GLFW.getWindowSize win >>= \(Just (w, h)) -> return (V2 w h) -- whereas gltut uses a reshape callback
+    updatePerspectiveMatrix size unifs
     render $ do
         clearWindowColor win (V4 0 0 0 0)
         vertexArray <- newVertexArray vertexBuffer
@@ -100,7 +100,7 @@ display win unifs vertexBuffer shaderProg = do
             , getPrimArr = toPrimitiveArray TriangleList $ zipVertices (,)
                 (takeVertices (length vertexData `div` 2) vertexArray)
                 (dropVertices (length vertexData `div` 2) vertexArray :: VertexArray () (B4 Float))
-            , getRastOpt = (Back, ViewPort (V2 0 0) (V2 x y), DepthRange 0 1)
+            , getRastOpt = (Back, ViewPort (V2 0 0) size, DepthRange 0 1)
             , getDrawOpt = (win, ContextColorOption NoBlending (V4 True True True True))
             }
     swapWindowBuffers win
