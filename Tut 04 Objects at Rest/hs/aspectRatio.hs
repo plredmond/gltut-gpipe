@@ -1,61 +1,206 @@
-import qualified Graphics.GLTut.Framework as Framework
-import qualified Graphics.GLTut.Perspective as Perspective
-import qualified Graphics.GLTut.Tut04.Models as Models
-import qualified Graphics.UI.GLUT as GLUT
+{-# LANGUAGE LambdaCase, NegativeLiterals, NamedFieldPuns #-} -- syntax niceties
+{-# LANGUAGE TypeFamilies #-} -- gpipe requirements
 
-import Graphics.GPipe
-import Data.Vec as V
-import Prelude as P
+import Control.Monad.IO.Class (liftIO)
+import System.Environment (getProgName)
+import qualified Control.Concurrent.MVar as MVar
+
+import qualified Control.Lens as Lens
+
+import Graphics.GPipe -- unqualified
+import Graphics.GPipe.Context.GLFW (Handle)
+import qualified Graphics.GPipe.Context.GLFW as GLFW
 
 main :: IO ()
-main = do
-    cube <- Models.load_cube
-    -- enter common mainloop
-    Framework.main keyboard
-                   (displayIO cube)
-                   initialize
+main = runContextT GLFW.defaultHandleConfig $ do
+    -- make a window
+    win <- newWindow (WindowFormatColor RGBA8) . GLFW.defaultWindowConfig =<< liftIO getProgName
+    -- hook up to receive ESC key and window-close events
+    close <- liftIO $ MVar.newEmptyMVar
+    _ <- GLFW.setWindowCloseCallback win . Just $
+        MVar.tryPutMVar close "window closed" >> return ()
+    _ <- GLFW.setKeyCallback win . Just $ \k _ ks _ -> case (k, ks) of
+        (GLFW.Key'Escape, GLFW.KeyState'Pressed) -> MVar.tryPutMVar close "escape key" >> return ()
+        _ -> return ()
+    -- init
+    prog <- compileShader shaderCode
+    buff <- newBuffer $ length vertexData
+    writeBuffer buff 0 vertexData
+    unifs <- do
+        unifV2 <- newBuffer 1
+        -- The M44 uniform isn't initialized until `display` is called.
+        unifM44 <- newBuffer 1
+        -- This is adjusted in "AspectRatio.cpp" to put the object off the side
+        -- of the screen, so that you must resize to test the constant aspect
+        -- ratio.
+        writeBuffer unifV2 0 [V2 1.5 0.5]
+        return Unifs
+            { offsetUniform = (unifV2, 0)
+            , perspectiveMatrixUnif = (unifM44, 0)
+            }
+    -- framework
+    loop close win unifs buff prog
+  where
+    loop close win unif buff prog = (liftIO $ MVar.tryReadMVar close) >>= \case
+        Just msg -> liftIO . putStrLn $ "stopping because: " ++ msg
+        Nothing -> display win unif buff prog >> loop close win unif buff prog
 
--- Set up the window.
-initialize :: GLUT.Window -> IO ()
-initialize w = GLUT.idleCallback GLUT.$= (Just . GLUT.postRedisplay . Just $ w)
+updatePerspectiveMatrix :: Unifs os -> (Int, Int) -> ContextT Handle os IO ()
+updatePerspectiveMatrix Unifs{perspectiveMatrixUnif=(unifM44,buffPos)} (width, height) = do
+    let frustrumScale = 1
+        zNear = 0.5
+        zFar = 3
+        x = frustrumScale / (fromIntegral width / fromIntegral height)
+        y = frustrumScale
+        z = (zFar + zNear) / (zNear - zFar)
+        w = (2 * zFar * zNear) / (zNear - zFar)
+    writeBuffer unifM44 buffPos
+        [V4 (V4 x 0  0 0)
+            (V4 0 y  0 0)
+            (V4 0 0  z w)
+            (V4 0 0 -1 0)]
 
--- Handle keyboard events.
-keyboard :: Char -> GLUT.Position -> IO ()
-keyboard '\ESC' _ = do GLUT.leaveMainLoop
-keyboard _      _ = do return ()
+data Unifs os = Unifs
+    { offsetUniform :: (Buffer os (Uniform (B2 Float)), BufferStartPos)
+    , perspectiveMatrixUnif :: (Buffer os (Uniform (V4 (B4 Float))), BufferStartPos)
+    }
 
--- Perform IO on behalf of display. Call display to produce the framebuffer.
-displayIO :: Models.PrimStream -> Vec2 Int -> IO (FrameBuffer RGBFormat () ())
-displayIO stream size = do
-    return $ display stream size
+data ShaderEnv os = ShaderEnv
+    { getUnifs :: Unifs os
+    , getPrimArr :: PrimitiveArray Triangles (B4 Float, B4 Float)
+    , getRastOpt :: (Side, ViewPort, DepthRange)
+    , getDrawOpt :: (Window os RGBAFloat (), ContextColorOption RGBAFloat)
+    }
+shaderCode :: Shader os (ShaderEnv os) ()
+shaderCode = do
+    offset <- getUniform $ offsetUniform . getUnifs
+    perspectiveMatrix <- getUniform $ perspectiveMatrixUnif . getUnifs
+    let vertShader (pos, col) =
+            let cameraPos = Lens.over _xy (+ offset) pos
+            in (perspectiveMatrix !* cameraPos, col)
+        fragShader col = col
+    primStream <- toPrimitiveStream getPrimArr
+    fragStream <- rasterize getRastOpt $ fmap vertShader primStream
+    drawWindowColor getDrawOpt $ fmap fragShader fragStream
 
--- Combine scene elements on a framebuffer.
-display :: Models.PrimStream -> Vec2 Int -> FrameBuffer RGBFormat () ()
-display stream size = draw fragments cleared
-    where
-        draw = paintColor NoBlending (RGB $ vec True)
-        cleared = newFrameBufferColor (RGB $ vec 0)
-        fragments = fmap fs
-                  $ rasterizeBack
-                  $ fmap (vs offset matrix)
-                  stream
-        -- constant uniforms, calculated once
-        offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Z of the vertex data by -2 here instead of duplicating the data inside the code.
-        -- variable uniforms, calculated every frame
-        matrix = toGPU $ Perspective.m_ar 1 0.5 3 (V.map fromIntegral size)
+display
+    :: Window os RGBAFloat ()
+    -> Unifs os
+    -> Buffer os (B4 Float)
+    -> CompiledShader os (ShaderEnv os)
+    -> ContextT Handle os IO ()
+display win unifs vertexBuffer shaderProg = do
+    Just size@(x, y) <- GLFW.getWindowSize win -- whereas gltut uses a reshape callback
+    updatePerspectiveMatrix unifs size
+    render $ do
+        clearWindowColor win (V4 0 0 0 0)
+        vertexArray <- newVertexArray vertexBuffer
+        shaderProg ShaderEnv
+            { getUnifs = unifs
+            , getPrimArr = toPrimitiveArray TriangleList $ zipVertices (,)
+                (takeVertices (length vertexData `div` 2) vertexArray)
+                (dropVertices (length vertexData `div` 2) vertexArray :: VertexArray () (B4 Float))
+            , getRastOpt = (Back, ViewPort (V2 0 0) (V2 x y), DepthRange 0 1)
+            , getDrawOpt = (win, ContextColorOption NoBlending (V4 True True True True))
+            }
+    swapWindowBuffers win
 
--- Offset the position. Perform projection using the provided matrix.
-vs  :: Vec4 (Vertex Float)
-    -> Mat44 (Vertex Float)
-    -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
-    -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
-vs offset mat (pos, col) = (clipPos, col)
-    where
-        cameraPos = pos + offset
-        clipPos = multmv mat cameraPos
+vertexData :: [V4 Float]
+vertexData =
+    -- position data
+    [ V4  0.25  0.25 -1.25 1
+    , V4  0.25 -0.25 -1.25 1
+    , V4 -0.25  0.25 -1.25 1
 
--- Use the provided color.
-fs :: Vec4 (Fragment Float) -> Color RGBFormat (Fragment Float)
-fs = RGB . V.take n3
+    , V4  0.25 -0.25 -1.25 1
+    , V4 -0.25 -0.25 -1.25 1
+    , V4 -0.25  0.25 -1.25 1
 
--- eof
+    , V4  0.25  0.25 -2.75 1
+    , V4 -0.25  0.25 -2.75 1
+    , V4  0.25 -0.25 -2.75 1
+
+    , V4  0.25 -0.25 -2.75 1
+    , V4 -0.25  0.25 -2.75 1
+    , V4 -0.25 -0.25 -2.75 1
+
+    , V4 -0.25  0.25 -1.25 1
+    , V4 -0.25 -0.25 -1.25 1
+    , V4 -0.25 -0.25 -2.75 1
+
+    , V4 -0.25  0.25 -1.25 1
+    , V4 -0.25 -0.25 -2.75 1
+    , V4 -0.25  0.25 -2.75 1
+
+    , V4  0.25  0.25 -1.25 1
+    , V4  0.25 -0.25 -2.75 1
+    , V4  0.25 -0.25 -1.25 1
+
+    , V4  0.25  0.25 -1.25 1
+    , V4  0.25  0.25 -2.75 1
+    , V4  0.25 -0.25 -2.75 1
+
+    , V4  0.25  0.25 -2.75 1
+    , V4  0.25  0.25 -1.25 1
+    , V4 -0.25  0.25 -1.25 1
+
+    , V4  0.25  0.25 -2.75 1
+    , V4 -0.25  0.25 -1.25 1
+    , V4 -0.25  0.25 -2.75 1
+
+    , V4  0.25 -0.25 -2.75 1
+    , V4 -0.25 -0.25 -1.25 1
+    , V4  0.25 -0.25 -1.25 1
+
+    , V4  0.25 -0.25 -2.75 1
+    , V4 -0.25 -0.25 -2.75 1
+    , V4 -0.25 -0.25 -1.25 1
+    -- color data
+    , V4 0   0   1   1
+    , V4 0   0   1   1
+    , V4 0   0   1   1
+
+    , V4 0   0   1   1
+    , V4 0   0   1   1
+    , V4 0   0   1   1
+
+    , V4 0.8 0.8 0.8 1
+    , V4 0.8 0.8 0.8 1
+    , V4 0.8 0.8 0.8 1
+
+    , V4 0.8 0.8 0.8 1
+    , V4 0.8 0.8 0.8 1
+    , V4 0.8 0.8 0.8 1
+
+    , V4 0   1   0   1
+    , V4 0   1   0   1
+    , V4 0   1   0   1
+
+    , V4 0   1   0   1
+    , V4 0   1   0   1
+    , V4 0   1   0   1
+
+    , V4 0.5 0.5 0   1
+    , V4 0.5 0.5 0   1
+    , V4 0.5 0.5 0   1
+
+    , V4 0.5 0.5 0   1
+    , V4 0.5 0.5 0   1
+    , V4 0.5 0.5 0   1
+
+    , V4 1   0   0   1
+    , V4 1   0   0   1
+    , V4 1   0   0   1
+
+    , V4 1   0   0   1
+    , V4 1   0   0   1
+    , V4 1   0   0   1
+
+    , V4 0   1   1   1
+    , V4 0   1   1   1
+    , V4 0   1   1   1
+
+    , V4 0   1   1   1
+    , V4 0   1   1   1
+    , V4 0   1   1   1
+    ]
