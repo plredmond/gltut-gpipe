@@ -17,14 +17,13 @@ therefore diffing them will highlight many of the essential changes required by 
 
 ### Cloning
 
-This repo is structured as overlay on the tutorials repo.
-The code here should run independently, but should you wish to view both projects overlaid, you can do so:
+This repo is structured as an overlay on the original tutorials.
+The code here should run independently, but if you want to see the c++ and haskell in one tree, you can do so:
 
-```
-git clone https://github.com/paroj/gltut.git
-mv gltut/.git gltut/paroj.git
-git clone https://github.com/plredmond/gltut_haskell-gpipe.git
-cp -r -n gltut_haskell-gpipe/ gltut/
+```sh
+git clone https://github.com/plredmond/gltut-gpipe.git
+wget https://github.com/paroj/gltut/archive/v0.3.9.tar.gz
+tar -C gltut-gpipe/ --strip-components=1 -xvf v0.3.9.tar.gz
 ```
 
 ### Building
@@ -33,7 +32,8 @@ The repo is currently set up to be built with nix.
 
 * `nix-build` will build all the tutorial executables.
 * `nix-shell` will drop you into an environment suitable for building the
-  tutorial executables at `./Tut*/hs/` using `runhaskell Setup.hs configure && runhaskell Setup.hs build` style commands.
+  tutorial executables at `./Tut*/hs/` using `runhaskell Setup.hs configure &&
+  runhaskell Setup.hs build` style commands.
 * `nix-shell --arg framework-target true` will drop you into an environment
   suitable for building the framework at `./framework/hs/`.
 
