@@ -17,8 +17,8 @@ therefore diffing them will highlight many of the essential changes required by 
 
 ### Cloning
 
-This repo is structured as an overlay on the original tutorials.
-The code here should run independently, but if you want to see the c++ and haskell in one tree, you can do so:
+The code in this repo *will run independently* of any other files. However, if
+you want to see the c++ and haskell code in one tree, you can overlay them:
 
 ```sh
 git clone https://github.com/plredmond/gltut-gpipe.git
