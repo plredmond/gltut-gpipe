@@ -5,21 +5,21 @@
 This is a port of a series of tutorials written by _Jason L. McKesson_ and originally published at ~~arcsynthesis.org/gltut~~.
 That site has been offline for several years now,
 and the original code at ~~bitbucket.org/alfonse/gltut/wiki/Home~~ is also no longer available.
-Thankfully there is an updated [fork on github](http://github.com/paroj/gltut) receiving love from the community and
-the tutorials have been republished at <http://paroj.github.io/gltut/>.
+Thankfully the [gltut tutorials](http://paroj.github.io/gltut/) are still online
+because an updated [fork on github](http://github.com/paroj/gltut) is being maintained.
 
 Here the original tutorials for C++ and GLSL are ported to Haskell
-using Tobias Bexelius' OpenGL framework [GPipe](https://github.com/tobbebex/GPipe)
+using Tobias Bexelius' OpenGL framework [GPipe](https://github.com/tobbebex/GPipe-Core)
 to express OpenGL buffers, uniforms, vertex shaders, and fragment shaders in normal Haskell code.
 
 It is recommended to use a diff tool to compare each code example with the next.
-The ports have been written to minimize changes between tutorials,
+The ports have been written to minimize changes between subsequent tutorials,
 therefore diffing them will highlight many of the essential changes required by each lesson.
 
 ### Cloning
 
-This repo is an overlay on the community fork of the tutorials.
-Several of the examples here use data files from that repository.
+This repo is structured as overlay on the tutorials repo.
+The code here should run independently, but should you wish to view both projects overlaid, you can do so:
 
 ```
 git clone https://github.com/paroj/gltut.git
@@ -30,10 +30,16 @@ cp -r -n gltut_haskell-gpipe/ gltut/
 
 ### Building
 
-To build these tutorials use haskell [stack](https://docs.haskellstack.org/en/stable/README/).
-Stack is in homebrew (for mac users) and can typically be found in the package manager of linux distributions.
+The repo is currently set up to be built with nix.
+
+* `nix-build` will build all the tutorial executables.
+* `nix-shell` will drop you into an environment suitable for building the
+  tutorial executables at `./Tut_*/hs/` using `runhaskell Setup.hs configure && runhaskell Setup.hs build` style commands.
+* `nix-shell --arg framework-target true` will drop you into an environment
+  suitable for building the framework at `./framework/hs/`.
 
 ### Status
 
-* Tutorials 1-6 are complete and resemble Jason's examples.
-* Tutorials 7-17 are forthcoming.
+* Tutorials 1-4 are mostly ported to GPipe2.
+* Tutorials 4-7 are mostly ported to GPipe1 (outdated, and probably won't build).
+* Tutorials 8-17 are forthcoming.
