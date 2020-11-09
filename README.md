@@ -34,7 +34,7 @@ The repo is currently set up to be built with nix.
 
 * `nix-build` will build all the tutorial executables.
 * `nix-shell` will drop you into an environment suitable for building the
-  tutorial executables at `./Tut_*/hs/` using `runhaskell Setup.hs configure && runhaskell Setup.hs build` style commands.
+  tutorial executables at `./Tut*/hs/` using `runhaskell Setup.hs configure && runhaskell Setup.hs build` style commands.
 * `nix-shell --arg framework-target true` will drop you into an environment
   suitable for building the framework at `./framework/hs/`.
 
