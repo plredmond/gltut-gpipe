@@ -1,40 +1,26 @@
 {-# LANGUAGE LambdaCase, NegativeLiterals #-} -- syntax niceties
 {-# LANGUAGE TypeFamilies #-} -- gpipe requirements
 
-import Control.Monad.IO.Class (liftIO)
-import System.Environment (getProgName)
-import qualified Control.Concurrent.MVar as MVar
-
 import Graphics.GPipe -- unqualified
 import Graphics.GPipe.Context.GLFW (Handle)
 import qualified Graphics.GPipe.Context.GLFW as GLFW
+import qualified Graphics.GLTut.Framework as FW
 
 main :: IO ()
 main = runContextT GLFW.defaultHandleConfig $ do
-    -- make a window
-    win <- newWindow (WindowFormatColor RGBA8) . GLFW.defaultWindowConfig =<< liftIO getProgName
-    -- hook up to receive ESC key and window-close events
-    close <- liftIO $ MVar.newEmptyMVar
-    _ <- GLFW.setWindowCloseCallback win . Just $
-        MVar.tryPutMVar close "window closed" >> return ()
-    _ <- GLFW.setKeyCallback win . Just $ \k _ ks _ -> case (k, ks) of
-        (GLFW.Key'Escape, GLFW.KeyState'Pressed) -> MVar.tryPutMVar close "escape key" >> return ()
-        _ -> return ()
-    -- initializeProgram
-    prog <- compileShader shaderCode
-    buff <- initializeVertexBuffer
-    -- framework
-    loop close win buff prog
-  where
-    loop close win buff prog = (liftIO $ MVar.tryReadMVar close) >>= \case
-        Just msg -> liftIO . putStrLn $ "stopping because: " ++ msg
-        Nothing -> display win buff prog >> loop close win buff prog
+    _ <- FW.main (WindowFormatColor RGBA8) initialize display keyboard reshape
+    return ()
 
-initializeVertexBuffer :: ContextT Handle os IO (Buffer os (B4 Float))
-initializeVertexBuffer = do
+type ShaderEnv os = (PrimitiveArray Triangles (B4 Float), ViewPort, Window os RGBAFloat ())
+
+type Env os = (Buffer os (B4 Float), CompiledShader os (ShaderEnv os), ViewPort)
+
+initialize :: Window os RGBAFloat () -> [String] -> ContextT Handle os IO (Env os)
+initialize _win _args = do
+    theProgram <- compileShader shaderCode
     vertexBufferObject <- newBuffer $ length vertexData
     writeBuffer vertexBufferObject 0 vertexData
-    return vertexBufferObject
+    return (vertexBufferObject, theProgram, ViewPort 0 0)
   where
     vertexData =
         [ V4  0.75  0.75 0 1
@@ -42,32 +28,33 @@ initializeVertexBuffer = do
         , V4 -0.75 -0.75 0 1
         ]
 
-type ShaderEnv os = (Window os RGBAFloat (), PrimitiveArray Triangles (B4 Float), V2 Int)
+display :: Window os RGBAFloat () -> Env os -> ContextT Handle os IO (Env os)
+display win env@(vertexBufferObject, theProgram, viewport) = do
+    render $ do
+        clearWindowColor win 0
+        vertexArray <- newVertexArray vertexBufferObject
+        theProgram
+            (toPrimitiveArray TriangleList vertexArray, viewport, win)
+    swapWindowBuffers win
+    return env
+
 shaderCode :: Shader os (ShaderEnv os) ()
 shaderCode = do
+    let vertShader pos = (pos, ()) -- no input to be interpolated by fragment shader
+        fragShader () RasterizedInfo{rasterizedFragCoord=V4 _ y _ _} =
+            let lerpValue = y / 500
+            in mix 1 (V4 0.2 0.2 0.2 1) (pure lerpValue)
+          --in point . pure $ mix 1 0.2 lerpValue -- This alternative might be more efficient.
     primStream <- toPrimitiveStream getPrimArr
     fragStream <- rasterize getRastOpt $ fmap vertShader primStream
     drawWindowColor getDrawOpt $ withRasterizedInfo fragShader fragStream
   where
-    getPrimArr (_, arr, _) = arr
-    getRastOpt (_, _, siz) = (FrontAndBack, ViewPort (V2 0 0) siz, DepthRange 0 1)
-    getDrawOpt (win, _, _) = (win, ContextColorOption NoBlending (V4 True True True True))
-    vertShader pos = (pos, ()) -- no input to be interpolated by fragment shader
-    fragShader () RasterizedInfo{rasterizedFragCoord=V4 _ y _ _} =
-        let lerpValue = y / 500
-        in mix 1 (V4 0.2 0.2 0.2 1) (pure lerpValue)
-      --in point . pure $ mix 1 0.2 lerpValue -- This alternative might be more efficient.
+    getPrimArr (arr, _, _) = arr
+    getRastOpt (_, vpt, _) = (FrontAndBack, vpt, DepthRange 0 1)
+    getDrawOpt (_, _, win) = (win, ContextColorOption NoBlending (pure True))
 
-display
-    :: Window os RGBAFloat ()
-    -> Buffer os (B4 Float)
-    -> CompiledShader os (ShaderEnv os)
-    -> ContextT Handle os IO ()
-display win vertexBuffer shaderProg = do
-    Just (x, y) <- GLFW.getWindowSize win -- whereas gltut uses a reshape callback
-    render $ do
-        clearWindowColor win (V4 0 0 0 0)
-        vertexArray <- newVertexArray vertexBuffer
-        shaderProg
-            (win, toPrimitiveArray TriangleList vertexArray, V2 x y)
-    swapWindowBuffers win
+keyboard :: Window os RGBAFloat () -> Env os -> GLFW.Key -> GLFW.KeyState -> GLFW.ModifierKeys -> ContextT Handle os IO (Env os)
+keyboard _win env _key _keyState _modKeys = return env
+
+reshape :: Window os RGBAFloat () -> Env os -> V2 Int -> ContextT Handle os IO (Env os)
+reshape _win (buff, prog, _) size = return (buff, prog, ViewPort 0 size)
