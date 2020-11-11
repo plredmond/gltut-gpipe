@@ -7,9 +7,9 @@ import qualified Graphics.GPipe.Context.GLFW as GLFW
 import qualified Graphics.GLTut.Framework as FW
 
 main :: IO ()
-main = runContextT GLFW.defaultHandleConfig
-    $ FW.main (WindowFormatColor RGBA8) initialize display keyboard reshape
-    >> return ()
+main = runContextT GLFW.defaultHandleConfig $ do
+    _ <- FW.main (WindowFormatColor RGBA8) initialize display keyboard reshape
+    return ()
 
 -- | ShaderEnv is the type of resources used by the shader code on the graphics
 -- card.
@@ -34,12 +34,12 @@ initialize _win _args = do
         ]
 
 display :: Window os RGBAFloat () -> Env os -> ContextT Handle os IO (Env os)
-display win env@(positionBufferObject, theProgram, viewPort) = do
+display win env@(positionBufferObject, theProgram, viewport) = do
     render $ do
         clearWindowColor win 0
         vertexArray <- newVertexArray positionBufferObject
         theProgram
-            (toPrimitiveArray TriangleList vertexArray, viewPort, win)
+            (toPrimitiveArray TriangleList vertexArray, viewport, win)
     swapWindowBuffers win
     return env
 
