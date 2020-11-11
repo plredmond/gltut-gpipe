@@ -34,14 +34,14 @@ initialize _win _args = do
         ]
 
 display :: Window os RGBAFloat () -> Env os -> ContextT Handle os IO (Env os)
-display win st@(positionBufferObject, theProgram, viewPort) = do
+display win env@(positionBufferObject, theProgram, viewPort) = do
     render $ do
-        clearWindowColor win (V4 0 0 0 0)
+        clearWindowColor win 0
         vertexArray <- newVertexArray positionBufferObject
         theProgram
             (toPrimitiveArray TriangleList vertexArray, viewPort, win)
     swapWindowBuffers win
-    return st
+    return env
 
 -- | Shader code which (1) gets the vertex-array as a primitive-stream, (2)
 -- maps a noop vertex-shader over it, (3) rasterizes to a fragment-stream, (4)
@@ -49,6 +49,8 @@ display win st@(positionBufferObject, theProgram, viewPort) = do
 -- window.
 shaderCode :: Shader os (ShaderEnv os) ()
 shaderCode = do
+    let vertShader pos = (pos, ()) -- no input to be interpolated by fragment shader
+        fragShader () = V4 1 1 1 1 -- hardcoded color & color-format
     primStream <- toPrimitiveStream getPrimArr
     fragStream <- rasterize getRastOpt $ fmap vertShader primStream
     drawWindowColor getDrawOpt $ fmap fragShader fragStream
@@ -56,11 +58,9 @@ shaderCode = do
     getPrimArr (arr, _, _) = arr
     getRastOpt (_, vpt, _) = (FrontAndBack, vpt, DepthRange 0 1)
     getDrawOpt (_, _, win) = (win, ContextColorOption NoBlending (pure True))
-    vertShader pos = (pos, ()) -- no input to be interpolated by fragment shader
-    fragShader () = V4 1 1 1 1 -- hardcoded color & color-format
 
 keyboard :: Window os RGBAFloat () -> Env os -> GLFW.Key -> GLFW.KeyState -> GLFW.ModifierKeys -> ContextT Handle os IO (Env os)
-keyboard _win st _key _keyState _modKeys = return st
+keyboard _win env _key _keyState _modKeys = return env
 
 reshape :: Window os RGBAFloat () -> Env os -> V2 Int -> ContextT Handle os IO (Env os)
 reshape _win (buff, prog, _) size = return (buff, prog, ViewPort 0 size)
