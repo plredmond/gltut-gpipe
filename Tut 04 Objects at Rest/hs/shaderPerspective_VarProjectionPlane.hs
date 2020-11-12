@@ -1,74 +1,238 @@
-import qualified Graphics.GLTut.Framework as Framework
-import qualified Graphics.GLTut.Tut04.Models as Models
-import qualified Graphics.GLTut.Tut04.VarProjectionPlane as VarProjectionPlane
-import qualified Graphics.UI.GLUT as GLUT
+{-# LANGUAGE LambdaCase, NegativeLiterals, NamedFieldPuns #-} -- syntax niceties
+{-# LANGUAGE TypeFamilies #-} -- gpipe requirements
 
-import Graphics.GPipe
-import Data.Vec as V
-import Prelude as P
+import Control.Lens ((^.))
+import Control.Monad.IO.Class (MonadIO(liftIO))
+import qualified Control.Lens as Lens
+
+import Graphics.GPipe -- unqualified
+import Graphics.GPipe.Context.GLFW (Handle)
+import qualified Graphics.GPipe.Context.GLFW as GLFW
+import qualified Graphics.GLTut.Easing as F
+import qualified Graphics.GLTut.Framework as FW
 
 main :: IO ()
-main = do
-    cube <- Models.load_cube
-    -- enter common mainloop
-    Framework.main keyboard
-                   (displayIO cube)
-                   initialize
+main = runContextT GLFW.defaultHandleConfig $ do
+    _ <- FW.main (WindowFormatColor RGBA8) initialize display keyboard reshape
+    return ()
 
--- Set up the window.
-initialize :: GLUT.Window -> IO ()
-initialize w = GLUT.idleCallback GLUT.$= (Just . GLUT.postRedisplay . Just $ w)
+data Unifs os = Unifs
+    { offsetUniform :: (Buffer os (Uniform (B2 Float)), BufferStartPos)
+    , frustrumScaleUnif :: (Buffer os (Uniform (B Float)), BufferStartPos)
+    , zNearUnif         :: (Buffer os (Uniform (B Float)), BufferStartPos)
+    , zFarUnif          :: (Buffer os (Uniform (B Float)), BufferStartPos)
+    , viewportSize      :: (Buffer os (Uniform (B2 Float)), BufferStartPos)
+    , perspectivePlane  :: (Buffer os (Uniform (B3 Float)), BufferStartPos)
+    }
 
--- Handle keyboard events.
-keyboard :: Char -> GLUT.Position -> IO ()
-keyboard '\ESC' _ = do GLUT.leaveMainLoop
-keyboard _      _ = do return ()
+data ShaderEnv os = ShaderEnv
+    { getUnifs :: Unifs os
+    , getPrimArr :: PrimitiveArray Triangles (B4 Float, B4 Float)
+    , getRastOpt :: (Side, ViewPort, DepthRange)
+    , getDrawOpt :: (Window os RGBAFloat (), ContextColorOption RGBAFloat)
+    }
 
--- Perform IO on behalf of display. Call display to produce the framebuffer.
-displayIO :: Models.PrimStream -> Vec2 Int -> IO (FrameBuffer RGBFormat () ())
-displayIO stream size = do
-    milliseconds <- GLUT.get GLUT.elapsedTime
-    return $ display stream size (fromIntegral milliseconds / 1000)
+data Env os = Env
+    { vertexBuff :: Buffer os (B4 Float)
+    , shaderProg :: CompiledShader os (ShaderEnv os)
+    , viewport :: ViewPort
+    , uniforms :: Unifs os
+    }
 
--- Combine scene elements on a framebuffer.
-display :: Models.PrimStream -> Vec2 Int -> Float -> FrameBuffer RGBFormat () ()
-display stream size sec = draw pp $ draw fragments cleared
-    where
-        draw = paintColor NoBlending (RGB $ vec True)
-        cleared = newFrameBufferColor (RGB $ vec 0)
-        fragments = fmap fs
-                  $ rasterizeBack
-                  $ fmap (vs offset frustrumScale zNear zFar (toGPU $ V.map fromIntegral size) (toGPU $ ppPos))
-                  stream
-        (ppPos, pp) = VarProjectionPlane.vpp sec
-        -- constant uniforms, calculated once
-        offset = toGPU (0.5:.0.5:.(-2):.0:.()) -- Minor deviation from tutorial: We offset the Z of the vertex data by -2 here instead of duplicating the data inside the code.
-        frustrumScale = toGPU 1
-        zNear = toGPU 0.5
-        zFar = toGPU 3
+initialize :: Window os RGBAFloat () -> [String] -> ContextT Handle os IO (Env os)
+initialize _win _args = do
+    theProgram <- compileShader shaderCode
+    vertexBufferObject <- newBuffer $ length vertexData
+    writeBuffer vertexBufferObject 0 vertexData
+    unifs <- do
+        unifB2F <- newBuffer 2
+        writeBuffer unifB2F offsetUniformOfs [V2 0.5 0.5]
+        unifBF <- newBuffer 3
+        writeBuffer unifBF 0 [1, 1, 3]
+        unifB3F <- newBuffer 1
+        return Unifs
+            { offsetUniform = (unifB2F, offsetUniformOfs)
+            , frustrumScaleUnif = (unifBF, frustrumScaleUnifOfs)
+            , zNearUnif         = (unifBF, zNearUnifOfs)
+            , zFarUnif          = (unifBF, zFarUnifOfs)
+            , viewportSize      = (unifB2F, viewportSizeOfs)
+            , perspectivePlane  = (unifB3F, perspectivePlaneOfs)
+            }
+    return $ Env vertexBufferObject theProgram (ViewPort 0 0) unifs
+  where
+    offsetUniformOfs = 0
+    viewportSizeOfs = 1
+    frustrumScaleUnifOfs = 0
+    zNearUnifOfs = 1
+    zFarUnifOfs = 2
+    perspectivePlaneOfs = 0
 
--- Offset the position. Perform projection manually.
-vs  :: Vec4 (Vertex Float)
-    -> Vertex Float
-    -> Vertex Float
-    -> Vertex Float
-    -> Vec2 (Vertex Float)
-    -> Vec4 (Vertex Float)
-    -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
-    -> (Vec4 (Vertex Float), Vec4 (Vertex Float))
-vs offset frustrumScale zNear zFar size (ppX:.ppY:.ppZ:._:.()) (pos, col) = (clipPos, col)
-    where
-        aspectRatio = let w:.h:.() = size in w / h
-        camX:.camY:.camZ:._:.() = pos + offset
-        pr1 = (zNear + zFar) / (zNear - zFar)
-        pr2 = (2 * zNear * zFar) / (zNear - zFar)
-        clipPos = (ppX + camX * frustrumScale / aspectRatio) :.
-                  (ppY + camY * frustrumScale) :.
-                  (camZ * pr1 + pr2) :.
-                  (camZ / (negate . abs $ ppZ)) :. ()
+display :: Window os RGBAFloat () -> Env os -> ContextT Handle os IO (Env os)
+display win env = do
+    updatePPUnif
+    render $ do
+        clearWindowColor win 0
+        vertexArray <- newVertexArray $ vertexBuff env
+        (shaderProg env) ShaderEnv
+            { getUnifs = uniforms env
+            , getPrimArr = toPrimitiveArray TriangleList $ zipVertices (,)
+                (takeVertices (length vertexData `div` 2) vertexArray)
+                (dropVertices (length vertexData `div` 2) vertexArray :: VertexArray () (B4 Float))
+            , getRastOpt = (Back, viewport env, DepthRange 0 1)
+            , getDrawOpt = (win, ContextColorOption NoBlending (pure True))
+            }
+    swapWindowBuffers win
+    return env
+  where
+    updatePPUnif = do
+        let (buff, buffPos) = perspectivePlane $ uniforms env
+        Just sec <- liftIO GLFW.getTime
+        writeBuffer buff buffPos [varyPerspPlane $ realToFrac sec]
 
--- Use the provided color.
-fs :: Vec4 (Fragment Float) -> Color RGBFormat (Fragment Float)
-fs = RGB . V.take n3
+shaderCode :: Shader os (ShaderEnv os) ()
+shaderCode = do
+    offset <- getUniform $ offsetUniform . getUnifs
+    frustrumScale <- getUniform $ frustrumScaleUnif . getUnifs
+    zNear         <- getUniform $ zNearUnif . getUnifs
+    zFar          <- getUniform $ zFarUnif . getUnifs
+    size          <- getUniform $ viewportSize . getUnifs
+    perspPlane    <- getUniform $ perspectivePlane . getUnifs
+    let vertShader = manualPerspective offset frustrumScale (zNear, zFar) size perspPlane
+        fragShader col = col
+    primStream <- toPrimitiveStream getPrimArr
+    fragStream <- rasterize getRastOpt $ fmap vertShader primStream
+    drawWindowColor getDrawOpt $ fmap fragShader fragStream
 
--- eof
+keyboard :: Window os RGBAFloat () -> Env os -> GLFW.Key -> GLFW.KeyState -> GLFW.ModifierKeys -> ContextT Handle os IO (Env os)
+keyboard _win env _key _keyState _modKeys = return env
+
+reshape :: Window os RGBAFloat () -> Env os -> V2 Int -> ContextT Handle os IO (Env os)
+reshape _win env size = do
+    updateSizeUnif
+    return env{viewport=ViewPort 0 size}
+  where
+    updateSizeUnif = do
+        let (buff, buffPos) = viewportSize $ uniforms env
+        writeBuffer buff buffPos [fromIntegral <$> size]
+
+manualPerspective :: (Fractional a) => V2 a -> a -> (a , a) -> V2 a -> V3 a -> (V4 a, V4 a) -> (V4 a, V4 a)
+manualPerspective offset frustrumScale (zNear, zFar) size pp (pos, col) = (clipPos, col)
+  where
+    cameraPos = Lens.over _xy (+ offset) pos
+    pr1 = (zNear + zFar) / (zNear - zFar)
+    pr2 = 2 * zNear * zFar / (zNear - zFar)
+    clipPos = V4
+        (cameraPos^._x * frustrumScale / (size^._x / size^._y) + pp^._x)
+        (cameraPos^._y * frustrumScale                         + pp^._y)
+        (cameraPos^._z * pr1 + pr2)
+        (cameraPos^._z                                  / negate pp^._z)
+
+varyPerspPlane :: Real' a => a -> V3 a
+varyPerspPlane sec = V3
+    (F.easeMidUpDnUp sec 2 `F.onRange` (-0.5, 0.5)) -- 0
+    (F.easeMidUpDnUp sec 4 `F.onRange` (-0.5, 0.5)) -- 0
+    (F.easeMidUpDnUp sec 8 `F.onRange` ( 0.5, 1.5)) -- 1
+
+-- | "The location of the prism has also changed. In the original tutorial, it
+-- was located on the 0.75 range in Z. Because camera space has a very
+-- different Z from clip space, this had to change. Now, the Z location of the
+-- prism is between -1.25 and -2.75."
+vertexData :: [V4 Float]
+vertexData =
+    -- position data
+    [ V4  0.25  0.25 -1.25 1
+    , V4  0.25 -0.25 -1.25 1
+    , V4 -0.25  0.25 -1.25 1
+
+    , V4  0.25 -0.25 -1.25 1
+    , V4 -0.25 -0.25 -1.25 1
+    , V4 -0.25  0.25 -1.25 1
+
+    , V4  0.25  0.25 -2.75 1
+    , V4 -0.25  0.25 -2.75 1
+    , V4  0.25 -0.25 -2.75 1
+
+    , V4  0.25 -0.25 -2.75 1
+    , V4 -0.25  0.25 -2.75 1
+    , V4 -0.25 -0.25 -2.75 1
+
+    , V4 -0.25  0.25 -1.25 1
+    , V4 -0.25 -0.25 -1.25 1
+    , V4 -0.25 -0.25 -2.75 1
+
+    , V4 -0.25  0.25 -1.25 1
+    , V4 -0.25 -0.25 -2.75 1
+    , V4 -0.25  0.25 -2.75 1
+
+    , V4  0.25  0.25 -1.25 1
+    , V4  0.25 -0.25 -2.75 1
+    , V4  0.25 -0.25 -1.25 1
+
+    , V4  0.25  0.25 -1.25 1
+    , V4  0.25  0.25 -2.75 1
+    , V4  0.25 -0.25 -2.75 1
+
+    , V4  0.25  0.25 -2.75 1
+    , V4  0.25  0.25 -1.25 1
+    , V4 -0.25  0.25 -1.25 1
+
+    , V4  0.25  0.25 -2.75 1
+    , V4 -0.25  0.25 -1.25 1
+    , V4 -0.25  0.25 -2.75 1
+
+    , V4  0.25 -0.25 -2.75 1
+    , V4 -0.25 -0.25 -1.25 1
+    , V4  0.25 -0.25 -1.25 1
+
+    , V4  0.25 -0.25 -2.75 1
+    , V4 -0.25 -0.25 -2.75 1
+    , V4 -0.25 -0.25 -1.25 1
+    -- color data
+    , V4 0   0   1   1
+    , V4 0   0   1   1
+    , V4 0   0   1   1
+
+    , V4 0   0   1   1
+    , V4 0   0   1   1
+    , V4 0   0   1   1
+
+    , V4 0.8 0.8 0.8 1
+    , V4 0.8 0.8 0.8 1
+    , V4 0.8 0.8 0.8 1
+
+    , V4 0.8 0.8 0.8 1
+    , V4 0.8 0.8 0.8 1
+    , V4 0.8 0.8 0.8 1
+
+    , V4 0   1   0   1
+    , V4 0   1   0   1
+    , V4 0   1   0   1
+
+    , V4 0   1   0   1
+    , V4 0   1   0   1
+    , V4 0   1   0   1
+
+    , V4 0.5 0.5 0   1
+    , V4 0.5 0.5 0   1
+    , V4 0.5 0.5 0   1
+
+    , V4 0.5 0.5 0   1
+    , V4 0.5 0.5 0   1
+    , V4 0.5 0.5 0   1
+
+    , V4 1   0   0   1
+    , V4 1   0   0   1
+    , V4 1   0   0   1
+
+    , V4 1   0   0   1
+    , V4 1   0   0   1
+    , V4 1   0   0   1
+
+    , V4 0   1   1   1
+    , V4 0   1   1   1
+    , V4 0   1   1   1
+
+    , V4 0   1   1   1
+    , V4 0   1   1   1
+    , V4 0   1   1   1
+    ]
