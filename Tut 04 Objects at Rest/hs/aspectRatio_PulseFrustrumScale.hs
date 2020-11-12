@@ -2,9 +2,6 @@
 {-# LANGUAGE TypeFamilies #-} -- gpipe requirements
 
 import Control.Monad.IO.Class (liftIO)
-import System.Environment (getProgName)
-import qualified Control.Concurrent.MVar as MVar
-
 import qualified Control.Lens as Lens
 
 import Graphics.GPipe -- unqualified
@@ -12,47 +9,12 @@ import Graphics.GPipe.Context.GLFW (Handle)
 import qualified Graphics.GPipe.Context.GLFW as GLFW
 import qualified Graphics.GLTut.Easing as F
 import qualified Graphics.GLTut.Perspective as F
+import qualified Graphics.GLTut.Framework as FW
 
 main :: IO ()
 main = runContextT GLFW.defaultHandleConfig $ do
-    -- make a window
-    win <- newWindow (WindowFormatColor RGBA8) . GLFW.defaultWindowConfig =<< liftIO getProgName
-    -- hook up to receive ESC key and window-close events
-    close <- liftIO $ MVar.newEmptyMVar
-    _ <- GLFW.setWindowCloseCallback win . Just $
-        MVar.tryPutMVar close "window closed" >> return ()
-    _ <- GLFW.setKeyCallback win . Just $ \k _ ks _ -> case (k, ks) of
-        (GLFW.Key'Escape, GLFW.KeyState'Pressed) -> MVar.tryPutMVar close "escape key" >> return ()
-        _ -> return ()
-    -- init
-    prog <- compileShader shaderCode
-    buff <- newBuffer $ length vertexData
-    writeBuffer buff 0 vertexData
-    unifs <- do
-        unifV2 <- newBuffer 1
-        -- The M44 uniform isn't initialized until `display` is called.
-        unifM44 <- newBuffer 1
-        -- This is adjusted in "AspectRatio.cpp" to put the object off the side
-        -- of the screen, so that you must resize to test the constant aspect
-        -- ratio.
-        writeBuffer unifV2 0 [V2 1.5 0.5]
-        return Unifs
-            { offsetUniform = (unifV2, 0)
-            , perspectiveMatrixUnif = (unifM44, 0)
-            }
-    -- framework
-    loop close win unifs buff prog
-  where
-    loop close win unif buff prog = (liftIO $ MVar.tryReadMVar close) >>= \case
-        Just msg -> liftIO . putStrLn $ "stopping because: " ++ msg
-        Nothing -> display win unif buff prog >> loop close win unif buff prog
-
-updatePerspectiveMatrix :: Float -> V2 Int -> Unifs os -> ContextT Handle os IO ()
-updatePerspectiveMatrix frustrumScale size Unifs{perspectiveMatrixUnif=(unifM44,buffPos)} = do
-    let zNear = 0.5
-        zFar = 3
-    writeBuffer unifM44 buffPos
-        [F.m_ar frustrumScale (zNear, zFar) (fromIntegral <$> size)]
+    _ <- FW.main (WindowFormatColor RGBA8) initialize display keyboard reshape
+    return ()
 
 data Unifs os = Unifs
     { offsetUniform :: (Buffer os (Uniform (B2 Float)), BufferStartPos)
@@ -65,6 +27,53 @@ data ShaderEnv os = ShaderEnv
     , getRastOpt :: (Side, ViewPort, DepthRange)
     , getDrawOpt :: (Window os RGBAFloat (), ContextColorOption RGBAFloat)
     }
+
+data Env os = Env
+    { vertexBuff :: Buffer os (B4 Float)
+    , shaderProg :: CompiledShader os (ShaderEnv os)
+    , viewport :: ViewPort
+    , uniforms :: Unifs os
+    }
+
+initialize :: Window os RGBAFloat () -> [String] -> ContextT Handle os IO (Env os)
+initialize _win _args = do
+    theProgram <- compileShader shaderCode
+    vertexBufferObject <- newBuffer $ length vertexData
+    writeBuffer vertexBufferObject 0 vertexData
+    unifs <- do
+        -- This offset is adjusted from the previous tutorial such that here in
+        -- "AspectRatio.cpp" the object is off the side of the screen, and you
+        -- must resize to test the constant aspect ratio.
+        unifB2F <- newBuffer 1
+        writeBuffer unifB2F offsetUniformOfs [V2 1.5 0.5]
+        -- The M44 uniform isn't initialized until `reshape` is called.
+        unifM44 <- newBuffer 1
+        return Unifs
+            { offsetUniform = (unifB2F, offsetUniformOfs)
+            , perspectiveMatrixUnif = (unifM44, perspectiveMatrixUnifOfs)
+            }
+    return $ Env vertexBufferObject theProgram (ViewPort 0 0) unifs
+  where
+    offsetUniformOfs = 0
+    perspectiveMatrixUnifOfs = 0
+
+display :: Window os RGBAFloat () -> Env os -> ContextT Handle os IO (Env os)
+display win env = do
+    updatePerspectiveMatrix (viewPortSize $ viewport env) (uniforms env)
+    render $ do
+        clearWindowColor win 0
+        vertexArray <- newVertexArray $ vertexBuff env
+        (shaderProg env) ShaderEnv
+            { getUnifs = uniforms env
+            , getPrimArr = toPrimitiveArray TriangleList $ zipVertices (,)
+                (takeVertices (length vertexData `div` 2) vertexArray)
+                (dropVertices (length vertexData `div` 2) vertexArray :: VertexArray () (B4 Float))
+            , getRastOpt = (Back, viewport env, DepthRange 0 1)
+            , getDrawOpt = (win, ContextColorOption NoBlending (pure True))
+            }
+    swapWindowBuffers win
+    return env
+
 shaderCode :: Shader os (ShaderEnv os) ()
 shaderCode = do
     offset <- getUniform $ offsetUniform . getUnifs
@@ -77,29 +86,21 @@ shaderCode = do
     fragStream <- rasterize getRastOpt $ fmap vertShader primStream
     drawWindowColor getDrawOpt $ fmap fragShader fragStream
 
-display
-    :: Window os RGBAFloat ()
-    -> Unifs os
-    -> Buffer os (B4 Float)
-    -> CompiledShader os (ShaderEnv os)
-    -> ContextT Handle os IO ()
-display win unifs vertexBuffer shaderProg = do
-    size <- GLFW.getWindowSize win >>= \(Just (w, h)) -> return (V2 w h) -- whereas gltut uses a reshape callback
-    frustrumScale <- liftIO GLFW.getTime >>= \(Just sec) ->
-        return . realToFrac $ F.easeMidUpDnUp sec 5 `F.onRange` (0.5, 1.5)
-    updatePerspectiveMatrix frustrumScale size unifs
-    render $ do
-        clearWindowColor win (V4 0 0 0 0)
-        vertexArray <- newVertexArray vertexBuffer
-        shaderProg ShaderEnv
-            { getUnifs = unifs
-            , getPrimArr = toPrimitiveArray TriangleList $ zipVertices (,)
-                (takeVertices (length vertexData `div` 2) vertexArray)
-                (dropVertices (length vertexData `div` 2) vertexArray :: VertexArray () (B4 Float))
-            , getRastOpt = (Back, ViewPort (V2 0 0) size, DepthRange 0 1)
-            , getDrawOpt = (win, ContextColorOption NoBlending (V4 True True True True))
-            }
-    swapWindowBuffers win
+keyboard :: Window os RGBAFloat () -> Env os -> GLFW.Key -> GLFW.KeyState -> GLFW.ModifierKeys -> ContextT Handle os IO (Env os)
+keyboard _win env _key _keyState _modKeys = return env
+
+reshape :: Window os RGBAFloat () -> Env os -> V2 Int -> ContextT Handle os IO (Env os)
+reshape _win env size = do
+    return env{viewport=ViewPort 0 size}
+
+updatePerspectiveMatrix :: V2 Int -> Unifs os -> ContextT Handle os IO ()
+updatePerspectiveMatrix size Unifs{perspectiveMatrixUnif=(buff, buffPos)} = do
+    Just sec <- liftIO GLFW.getTime
+    let frustrumScale = realToFrac $ F.easeMidUpDnUp sec 5 `F.onRange` (0.5, 1.5)
+        zNear = 0.5
+        zFar = 3
+    writeBuffer buff buffPos
+        [F.m_ar frustrumScale (zNear, zFar) (fromIntegral <$> size)]
 
 vertexData :: [V4 Float]
 vertexData =
