@@ -22,10 +22,6 @@ executables:
     aspectRatio:
         main: aspectRatio.hs
     # Further study
-    vertCalcOffset_TwoTriangles:
-        main: vertCalcOffset_TwoTriangles.hs
-    fragChangeColor_SmoothTransition:
-        main: fragChangeColor_SmoothTransition.hs
     aspectRatio_PulseFrustrumScale:
         main: aspectRatio_PulseFrustrumScale.hs
     aspectRatio_PulseZNear:
