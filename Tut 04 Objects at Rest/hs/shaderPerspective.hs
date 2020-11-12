@@ -42,7 +42,7 @@ initialize _win _args = do
     writeBuffer vertexBufferObject 0 vertexData
     unifs <- do
         unifB2F <- newBuffer 1
-        writeBuffer unifB2F 0 [V2 0.5 0.5]
+        writeBuffer unifB2F offsetUniformOfs [V2 0.5 0.5]
         unifBF <- newBuffer 3
         writeBuffer unifBF 0 [1, 1, 3]
         return Unifs
