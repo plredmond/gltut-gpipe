@@ -40,5 +40,5 @@ The repo is currently set up to be built with nix.
 ### Status
 
 * Tutorials 1-4 are mostly ported to GPipe2.
-* Tutorials 4-7 are mostly ported to GPipe1 (outdated, and probably won't build).
+* Tutorials 5-7 are mostly ported to GPipe1 (outdated, and probably won't build).
 * Tutorials 8-17 are forthcoming.
